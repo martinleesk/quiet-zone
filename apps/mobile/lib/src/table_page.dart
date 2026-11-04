@@ -24,6 +24,7 @@ class _TablePageState extends State<TablePage> {
   final _text = TextEditingController();
   String? _target;
   String _nightAction = "skip";
+  bool _anonymous = false;
 
   @override
   void dispose() {
@@ -62,6 +63,15 @@ class _TablePageState extends State<TablePage> {
                 const SizedBox(height: 12),
                 if (public.winner != null) _WinnerCard(winner: public.winner!),
                 if (mine.role != null) _RoleCard(mine: mine),
+                if (public.pins.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text("釘選時間線", style: Theme.of(context).textTheme.titleSmall),
+                  for (final pin in public.pins)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(pin.unverified ? "待核實｜${pin.text}" : pin.text),
+                    ),
+                ],
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
@@ -111,6 +121,63 @@ class _TablePageState extends State<TablePage> {
     );
   }
 
+  List<Widget> _skillControls(PublicView public, PrivateView mine) {
+    if (mine.skillActions.isEmpty) return const [];
+    return [
+      for (final action in mine.skillActions)
+        if (action.action == "pin" || action.action == "fake_plant")
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: FilledButton(
+              onPressed: () {
+                final text = _text.text.trim();
+                if (text.isEmpty) return;
+                widget.controller.skill(action.action, text: text);
+                _text.clear();
+              },
+              child: Text(action.label),
+            ),
+          )
+        else if (action.action == "link")
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: FilledButton(
+              onPressed: _target == null ? null : () => widget.controller.skill("link", targetId: _target),
+              child: const Text("核對通聯"),
+            ),
+          )
+        else if (action.action == "fake_flag")
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Wrap(
+              spacing: 6,
+              children: [
+                for (final pin in public.pins.where((item) => !item.unverified))
+                  ActionChip(
+                    label: Text("待核實｜${pin.text}"),
+                    onPressed: () => widget.controller.skill("fake_flag", targetId: pin.id),
+                  ),
+              ],
+            ),
+          ),
+      if (mine.skillActions.any((action) => action.action == "link"))
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Wrap(
+            spacing: 6,
+            children: [
+              for (final seat in public.seats.where((seat) => seat.alive && seat.id != mine.seatId))
+                ChoiceChip(
+                  label: Text(seat.nickname),
+                  selected: _target == seat.id,
+                  onSelected: (_) => setState(() => _target = seat.id),
+                ),
+            ],
+          ),
+        ),
+    ];
+  }
+
   Widget _actions(PublicView public, PrivateView mine) {
     if (!mine.alive) return const Text("你已離場，可以繼續睇公開頻道。");
     if (public.winner != null || public.phase == "ended") {
@@ -152,6 +219,7 @@ class _TablePageState extends State<TablePage> {
               decoration: const InputDecoration(labelText: "短句"),
             ),
             const SizedBox(height: 8),
+            ..._skillControls(public, mine),
             FilledButton(
               onPressed: () {
                 final text = _text.text.trim();
@@ -191,7 +259,15 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("投一個仍在場嘅人，或者棄權。平票就流局，唔會隔離。撳準備好先會結算。"),
+            const Text("投一個仍在場嘅人，或者棄權。平票就流局，唔會隔離。結算先公開票簿。"),
+            if (mine.anonymousVote) ...[
+              const SizedBox(height: 8),
+              FilterChip(
+                label: const Text("匿名票（每局一次）"),
+                selected: _anonymous,
+                onSelected: (value) => setState(() => _anonymous = value),
+              ),
+            ],
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
@@ -206,11 +282,11 @@ class _TablePageState extends State<TablePage> {
             ),
             const SizedBox(height: 8),
             FilledButton(
-              onPressed: _target == null ? null : () => widget.controller.vote(_target),
+              onPressed: _target == null ? null : () => widget.controller.vote(_target, anonymous: _anonymous),
               child: const Text("確認投票"),
             ),
             TextButton(
-              onPressed: () => widget.controller.vote(null),
+              onPressed: () => widget.controller.vote(null, anonymous: _anonymous),
               child: const Text("棄權"),
             ),
             OutlinedButton(onPressed: widget.controller.ready, child: const Text("準備好")),
@@ -221,7 +297,8 @@ class _TablePageState extends State<TablePage> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const Text("你今夜沒有主動技能。"),
+              ..._skillControls(public, mine),
+              Text(mine.skillActions.isEmpty ? "你今夜沒有主動技能。" : "假訊可以喺熄燈放。"),
               const SizedBox(height: 8),
               FilledButton(onPressed: widget.controller.ready, child: const Text("跳過並準備")),
             ],
@@ -233,6 +310,7 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            ..._skillControls(public, mine),
             Wrap(
               spacing: 6,
               children: [
