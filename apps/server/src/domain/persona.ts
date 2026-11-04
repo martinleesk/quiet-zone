@@ -3,6 +3,12 @@
  * vote leader is copied by every AI. Personas only choose talk, drafts,
  * night targets, and votes when no human ballot exists to follow.
  * Two seats never share a persona just because they share a role.
+ *
+ * Soft timing (not a rule change): the first night kill is not automatic.
+ * 謹慎旁觀、安靜跟票、守線穩票、大聲虛張 hold night 1. 尖銳指控 only strikes
+ * then if their accusation is the unique public heat. 夜獵優先 still opens on
+ * the pinned seat. Later nights keep different targets. 守線 and 夜獵 covers
+ * guard that pin; 大聲虛張 still guards a decoy seat.
  */
 import { DRAFT_PHRASES, SILENCE_TEMPLATES, TALK_PHRASES, speakTalk } from "./phrases.js";
 import type { Faction, NightCommand, Phase, RoleId } from "./types.js";
@@ -271,7 +277,11 @@ function townVote(ctx: ThinkContext, pool: SeatBrief[]): string | null {
     if (ctx.round >= 3) return campTarget(ctx, pool);
     return null;
   }
-  if (persona === "follower" || persona === "anchor") {
+  if (persona === "anchor") {
+    if (heat && heatScore >= 4) return heat;
+    return campTarget(ctx, pool);
+  }
+  if (persona === "follower") {
     if (heat && (ctx.round >= 2 || heatScore >= 4)) return heat;
     if (ctx.round >= 2) return campTarget(ctx, pool);
     return null;
@@ -294,13 +304,21 @@ function silenceVote(ctx: ThinkContext, pool: SeatBrief[]): string | null {
 function silenceKill(ctx: ThinkContext): NightCommand {
   const pool = enemies(ctx);
   if (pool.length === 0 || !ctx.selfPersona) return { action: "skip" };
-  if (ctx.selfPersona === "observer" && ctx.night <= 1) return { action: "skip" };
+  const holdsFirstNight =
+    ctx.selfPersona === "observer" ||
+    ctx.selfPersona === "follower" ||
+    ctx.selfPersona === "anchor" ||
+    ctx.selfPersona === "bluffer";
+  if (holdsFirstNight && ctx.night <= 1) return { action: "skip" };
   if (ctx.selfPersona === "hunter") {
     return { action: "disconnect", targetSeatId: pinFirst(ctx, pool) ?? rotated(ctx, pool, 1 + ctx.night)!.id };
   }
   if (ctx.selfPersona === "bluffer") return { action: "disconnect", targetSeatId: coldest(ctx, pool).id };
   if (ctx.selfPersona === "accuser") {
-    return { action: "disconnect", targetSeatId: ownSuspect(ctx, pool) ?? rotated(ctx, pool, ctx.night)!.id };
+    const named = ownSuspect(ctx, pool);
+    const hot = uniqueHeat(ctx, pool);
+    if (ctx.night <= 1 && (!named || named !== hot)) return { action: "skip" };
+    return { action: "disconnect", targetSeatId: named ?? rotated(ctx, pool, ctx.night)!.id };
   }
   if (ctx.selfPersona === "follower") {
     return { action: "disconnect", targetSeatId: uniqueHeat(ctx, pool) ?? rotated(ctx, pool, 2 + ctx.night)!.id };
@@ -311,12 +329,23 @@ function silenceKill(ctx: ThinkContext): NightCommand {
 function coverPick(ctx: ThinkContext): NightCommand {
   if (!ctx.selfPersona) return { action: "skip" };
   if (!ctx.coverReady && ctx.selfPersona !== "bluffer") return { action: "skip" };
-  if (ctx.selfPersona === "hunter" || ctx.selfPersona === "observer") {
+  if (ctx.selfPersona === "hunter") {
+    const pin = pinFirst(ctx, others(ctx));
+    if (pin) return { action: "cover", targetSeatId: pin };
+    const hot = hottest(ctx, others(ctx));
+    if (hot && suspicion(ctx, hot.id) > 0) return { action: "cover", targetSeatId: hot.id };
+    return { action: "cover", targetSeatId: ctx.selfId };
+  }
+  if (ctx.selfPersona === "observer") {
+    const hot = hottest(ctx, others(ctx));
+    if (hot && suspicion(ctx, hot.id) >= 2) return { action: "cover", targetSeatId: hot.id };
     return { action: "cover", targetSeatId: ctx.selfId };
   }
   if (ctx.selfPersona === "anchor") {
     const pin = others(ctx).find((seat) => ctx.pinSeatIds.includes(seat.id));
-    return { action: "cover", targetSeatId: pin?.id ?? ctx.selfId };
+    if (pin) return { action: "cover", targetSeatId: pin.id };
+    const hunch = sharedHunch(ctx, others(ctx));
+    return { action: "cover", targetSeatId: hunch ?? ctx.selfId };
   }
   if (ctx.selfPersona === "accuser") {
     const hot = hottest(ctx, others(ctx));
@@ -324,7 +353,7 @@ function coverPick(ctx: ThinkContext): NightCommand {
     return { action: "cover", targetSeatId: ctx.selfId };
   }
   if (ctx.selfPersona === "follower") {
-    const guarded = lastProtect(ctx);
+    const guarded = lastProtect(ctx) ?? sharedHunch(ctx, others(ctx));
     return { action: "cover", targetSeatId: guarded ?? ctx.selfId };
   }
   const decoy = rotated(ctx, others(ctx), 3);
@@ -426,10 +455,17 @@ function campTarget(ctx: ThinkContext, pool: SeatBrief[]): string | null {
   return uniqueHeat(ctx, pool) ?? sharedHunch(ctx, pool);
 }
 
+/** Same living-seat cursor for every reader. Self and teammates are skipped, so two anchors usually name one seat. */
 function sharedHunch(ctx: ThinkContext, pool: readonly SeatBrief[]): string | null {
   if (pool.length === 0) return null;
-  const index = Math.abs(ctx.salt + ctx.round * 3) % pool.length;
-  return pool[index]?.id ?? null;
+  const living = ctx.seats.filter((seat) => seat.alive).sort((a, b) => a.index - b.index);
+  if (living.length === 0) return pool[0]?.id ?? null;
+  const start = Math.abs(ctx.salt + ctx.round * 3) % living.length;
+  for (let step = 0; step < living.length; step++) {
+    const seat = living[(start + step) % living.length];
+    if (seat && pool.some((item) => item.id === seat.id)) return seat.id;
+  }
+  return pool[0]?.id ?? null;
 }
 
 function enemies(ctx: ThinkContext): SeatBrief[] {

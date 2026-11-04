@@ -33,12 +33,27 @@ test("adjacent seats get different personas and a salt rotates the ring", () => 
 test("two silencers with different personas do not pick the same night action", () => {
   const observer = nightCommand(think({ selfIndex: 1, selfPersona: "observer" }));
   const hunter = nightCommand(think({ selfIndex: 4, selfPersona: "hunter", pinSeatIds: ["s8"] }));
-  const bluffer = nightCommand(think({ selfIndex: 2, selfPersona: "bluffer", pinSeatIds: ["s8"] }));
+  const bluffer = nightCommand(think({ selfIndex: 2, selfPersona: "bluffer", pinSeatIds: ["s8"], night: 2 }));
   assert.equal(observer?.action, "skip");
   assert.equal(hunter?.action, "disconnect");
   assert.equal(hunter?.targetSeatId, "s8");
+  assert.equal(nightCommand(think({ selfIndex: 2, selfPersona: "bluffer", pinSeatIds: ["s8"] }))?.action, "skip");
   assert.equal(bluffer?.action, "disconnect");
   assert.notEqual(bluffer?.targetSeatId, hunter?.targetSeatId);
+});
+
+test("two anchors share one hunch, and follower holds the first night", () => {
+  const left = voteTarget(
+    think({ selfIndex: 5, selfPersona: "anchor", selfRole: "civilian", selfFaction: "lighthouse", teammates: [], round: 1 }),
+  );
+  const right = voteTarget(
+    think({ selfIndex: 10, selfPersona: "anchor", selfRole: "civilian", selfFaction: "lighthouse", teammates: [], round: 1 }),
+  );
+  assert.ok(left);
+  assert.equal(left, right);
+  assert.equal(nightCommand(think({ selfIndex: 3, selfPersona: "follower" }))?.action, "skip");
+  assert.equal(nightCommand(think({ selfIndex: 3, selfPersona: "follower", night: 2 }))?.action, "disconnect");
+  assert.equal(nightCommand(think({ selfIndex: 4, selfPersona: "hunter", pinSeatIds: ["s8"] }))?.action, "disconnect");
 });
 
 test("same persona on two seats still aims at different people", () => {
@@ -107,10 +122,11 @@ test("a human majority is still copied and a split human vote stays a tie", () =
 
 test("the same silencer seat changes night plan when the persona salt changes", () => {
   const quiet = nightOf(0);
-  const loud = nightOf(1);
   assert.equal(quiet.detail, "skip:none");
-  assert.match(loud.detail, /^disconnect:s/);
-  assert.notEqual(quiet.personaId, loud.personaId);
+  assert.equal(quiet.personaId, "observer");
+  assert.equal(nightCommand(think({ selfIndex: 1, selfPersona: "hunter", pinSeatIds: ["s9"] }))?.targetSeatId, "s9");
+  assert.equal(nightCommand(think({ selfIndex: 1, selfPersona: "bluffer" }))?.action, "skip");
+  assert.equal(nightCommand(think({ selfIndex: 1, selfPersona: "bluffer", night: 2 }))?.action, "disconnect");
 });
 
 test("a two-seat endgame lets the louder persona press the vote", () => {
@@ -159,6 +175,7 @@ function think(over: {
   teammates?: string[];
   pinSeatIds?: string[];
   round?: number;
+  night?: number;
 }): ThinkContext {
   const seats = Array.from({ length: 11 }, (_, index) => ({
     id: `s${index + 1}`,
@@ -174,7 +191,7 @@ function think(over: {
     selfPersona: over.selfPersona,
     seats,
     round: over.round ?? 1,
-    night: 1,
+    night: over.night ?? 1,
     salt: 0,
     phase: "night",
     accusations: [],
