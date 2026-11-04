@@ -75,9 +75,14 @@
     }
     .verb-chip.ghost { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
     .verb-chip.on { outline: 2px solid #fff; }
-    .target-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .target-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(108px, 160px));
+      justify-content: start;
+      gap: 8px;
+    }
     .target {
-      flex: 1 1 108px;
+      width: 100%;
       min-height: 52px;
       border-radius: 14px;
       border: 2px solid var(--gold);
@@ -176,7 +181,7 @@
       text-align: center;
     }
     .btn.fill { background: var(--gold); color: var(--deep); font-weight: 700; }
-    .btn:disabled { opacity: .45; }
+    .btn:disabled, .verb:disabled, .target:disabled { opacity: .45; cursor: default; }
     .row-btns { display: flex; gap: 8px; }
     .row-btns .btn { flex: 1; }
     .code { font-size: 32px; letter-spacing: .28em; margin: 0; }
@@ -308,13 +313,13 @@
     .detail[hidden] { display: none; }
     .detail-head { display: flex; gap: 10px; align-items: flex-start; }
     .detail h3 { margin: 0; font-size: 18px; }
+    .hint-turn { display: none; color: var(--muted); font-size: 12px; white-space: nowrap; flex: none; }
     @media (orientation: portrait) {
       .shell, .home { flex-direction: column; }
       .scene { flex: none; min-height: 38dvh; }
       h1 { font-size: 28px; }
       .hint-turn { display: inline; }
     }
-    .hint-turn { display: none; color: var(--muted); font-size: 12px; }
     @media (max-height: 420px) {
       h1 { font-size: 26px; }
       .copy { padding: 10px 14px; }

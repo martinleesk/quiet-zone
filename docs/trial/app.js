@@ -79,6 +79,12 @@ let phaseTotal = null;
 let clockAnchor = 0;
 let sessionOpen = false;
 let roleGo = false;
+let phaseDeadlineAt = null;
+let voteSent = false;
+let lastCast = "";
+let swallowClick = false;
+let voteGuardTimer = 0;
+const VOTE_GUARD_MS = 250;
 const seenTips = new Set();
 
 function esc(value) {
@@ -149,6 +155,7 @@ function syncClock(seconds, phaseChanged) {
   if (seconds == null) {
     serverSeconds = null;
     phaseTotal = null;
+    phaseDeadlineAt = null;
     paintClock();
     return;
   }
@@ -156,8 +163,51 @@ function syncClock(seconds, phaseChanged) {
     if (phaseChanged || phaseTotal == null || seconds > phaseTotal) phaseTotal = seconds;
     serverSeconds = seconds;
     clockAnchor = Date.now();
+    if (phaseChanged || phaseDeadlineAt == null) phaseDeadlineAt = clockAnchor + seconds * 1000;
   }
   paintClock();
+}
+
+function clearVoteGuard() {
+  if (voteGuardTimer) clearTimeout(voteGuardTimer);
+  voteGuardTimer = 0;
+}
+
+function resetVoteGuard() {
+  clearVoteGuard();
+  voteSent = false;
+  lastCast = "";
+  swallowClick = false;
+}
+
+function scheduleVoteGuard() {
+  clearVoteGuard();
+  if (!view || view.public.phase !== "vote" || phaseDeadlineAt == null) return;
+  const wait = phaseDeadlineAt - VOTE_GUARD_MS - Date.now();
+  if (wait <= 0) {
+    freezeVote();
+    return;
+  }
+  voteGuardTimer = setTimeout(freezeVote, wait);
+}
+
+function castVote(seatId) {
+  if (seatId) selected = seatId;
+  if (!selected || !view || view.public.phase !== "vote") return;
+  if (lastCast === selected) return;
+  lastCast = selected;
+  voteSent = true;
+  swallowClick = true;
+  setTimeout(() => {
+    swallowClick = false;
+  }, 400);
+  send({ type: "vote", targetSeatId: selected, anonymous });
+}
+
+function freezeVote() {
+  voteGuardTimer = 0;
+  if (!view || view.public.phase !== "vote") return;
+  castVote();
 }
 
 function faceHtml(pub, priv, seat) {
@@ -210,13 +260,23 @@ function logBlock(pub, priv) {
   for (const note of priv.inbox || []) lines.push(`<p>${esc(note)}</p>`);
   for (const remnant of priv.remnants || []) lines.push(`<p>殘片｜${esc(remnant.nickname)} · ${esc(remnant.factionLabel)}：${esc(remnant.text)}</p>`);
   lines.push(`<h3 style="margin:8px 0 4px;font-size:13px">公開頻道</h3>`);
-  for (const line of pub.log || []) lines.push(`<p class="log-line">${esc(line.text)}</p>`);
+  for (const line of pub.log || []) lines.push(`<p class="log-line">${esc(ticketText(line.text, pub))}</p>`);
   if (priv.role && priv.role.faction === "silence" && pub.phase === "night") {
     lines.push(`<h3 style="margin:8px 0 4px;font-size:13px">消音組夜訊</h3>`);
     for (const note of priv.silenceChannel || []) lines.push(`<p class="log-line">${esc(note.nickname)}：${esc(note.text)}</p>`);
   }
   if (errorText) lines.push(`<p class="err">${esc(errorText)}</p>`);
   return lines.join("");
+}
+
+function ticketText(text, pub) {
+  const raw = String(text ?? "");
+  if (!raw.startsWith("票簿")) return raw;
+  const names = new Map((pub.seats || []).map((seat) => [seat.id, seat.nickname]));
+  return raw.replace(/→ (s\d+)/g, (all, id) => {
+    const nick = names.get(id);
+    return nick ? `→ ${nick}` : all;
+  });
 }
 
 function cueOf(action, label) {
@@ -321,8 +381,18 @@ function actions(pub, priv) {
   return `<p>${esc(pub.phaseLabel || "")}</p>`;
 }
 
-function setCoach(id) {
-  const coach = COACH[id] || { line: "跟住下面嘅掣", bullets: [] };
+function coachPack(phase, pub, priv) {
+  if (phase === "night" && pub && priv && skillModes(pub, priv).length === 0) {
+    return {
+      line: "跳過／無行動",
+      bullets: ["今夜冇席位可揀", "撳跳過", "全文喺詳情同圖鑑"],
+    };
+  }
+  return COACH[phase] || { line: "跟住下面嘅掣", bullets: [] };
+}
+
+function setCoach(phase, pub, priv) {
+  const coach = coachPack(phase, pub, priv);
   coachEl.textContent = `而家做咩：${coach.line}`;
 }
 
@@ -330,7 +400,7 @@ function detailHtml() {
   const pub = view && view.public;
   const priv = view && view.private;
   const phase = pub ? pub.phase : "home";
-  const coach = COACH[phase] || { line: "跟住下面嘅掣", bullets: [] };
+  const coach = coachPack(phase, pub, priv);
   const bullets = (coach.bullets || []).map((item) => `<p>${esc(item)}</p>`).join("");
   const role = priv && priv.role;
   const essay = role
@@ -372,7 +442,7 @@ function paintHome() {
       <div class="sub">封鎖夜 · 標準 Mode 試玩</div>
       <p>11 人隱藏身份。你要估邊三個係消音組。</p>
       <p>燈亮講一句，然後投票。熄燈先用技能。上面會寫而家做咩。</p>
-      <p class="small">請轉橫向。倒數係上面個大數字。</p>
+      <p class="small"><span class="hint-turn">請轉橫向。</span>倒數係上面個大數字。</p>
     </div></div>
     <form class="pane" id="home-form">
       <div class="dock" style="border-top:0;max-height:none">
@@ -400,7 +470,7 @@ function paint() {
   phaseLabel.textContent = roundBit;
   const role = priv.role;
   roleChip.textContent = role ? `${role.name} · ${role.factionLabel}` : "身份未派";
-  setCoach(phase);
+  setCoach(phase, pub, priv);
   leaveBtn.hidden = false;
   const phaseChanged = phase !== paintedPhase;
   syncClock(pub.secondsLeft, phaseChanged);
@@ -449,6 +519,7 @@ function paint() {
     line.focus();
     if (at != null) line.setSelectionRange(at, at);
   }
+  scheduleVoteGuard();
 }
 
 function showOverlay(pub, priv) {
@@ -478,6 +549,10 @@ function onMessage(raw) {
   const message = JSON.parse(raw);
   if (message.type === "error") {
     errorText = message.message || "發生錯誤。";
+    if (view && view.public.phase === "vote") {
+      voteSent = false;
+      lastCast = "";
+    }
     paint();
     return;
   }
@@ -492,6 +567,7 @@ function onMessage(raw) {
     talkVerb = "";
     writeOpen = false;
     silenceOpen = false;
+    resetVoteGuard();
     lastPhase = phase;
   }
   view = message;
@@ -523,7 +599,23 @@ function beginTrial(nickname) {
   send({ type: "create_room", nickname: nickname || "夜歸人" });
 }
 
+app.addEventListener("pointerdown", (event) => {
+  if (!view || view.public.phase !== "vote") return;
+  const node = event.target.closest("[data-act]");
+  if (!node || !app.contains(node)) return;
+  const act = node.dataset.act;
+  if (act !== "pick" && act !== "vote") return;
+  const left = phaseDeadlineAt == null ? Infinity : phaseDeadlineAt - Date.now();
+  if (left > VOTE_GUARD_MS + 120) return;
+  if (act === "pick") selected = node.dataset.id || "";
+  castVote();
+}, true);
+
 app.addEventListener("click", (event) => {
+  if (swallowClick) {
+    swallowClick = false;
+    return;
+  }
   const node = event.target.closest("[data-act]");
   if (!node || !app.contains(node)) return;
   const act = node.dataset.act;
@@ -600,8 +692,17 @@ app.addEventListener("click", (event) => {
     send({ type: "draft", text });
     return send({ type: "ready" });
   }
-  if (act === "vote") return send({ type: "vote", targetSeatId: selected, anonymous });
-  if (act === "abstain") return send({ type: "vote", targetSeatId: null, anonymous });
+  if (act === "vote") {
+    if (!selected) return;
+    return castVote();
+  }
+  if (act === "abstain") {
+    if (lastCast === "abstain") return;
+    selected = "";
+    lastCast = "abstain";
+    voteSent = true;
+    return send({ type: "vote", targetSeatId: null, anonymous });
+  }
   if (act === "night-seat") {
     const marks = (view?.private.marks) || [];
     if (nightAction === "mark" && marks.includes(id)) {
@@ -681,6 +782,8 @@ leaveBtn.addEventListener("click", () => {
   view = null;
   lastPhase = "";
   paintedPhase = "";
+  resetVoteGuard();
+  phaseDeadlineAt = null;
   roleGo = false;
   seenTips.clear();
   errorText = "";
