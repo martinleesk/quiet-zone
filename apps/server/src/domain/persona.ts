@@ -153,17 +153,25 @@ export function speakPriority(id: PersonaId): number {
  * Last two living seats cannot lynch each other: both voting is a permanent tie.
  * The louder persona presses the vote. Equal volume falls to the earlier seat.
  */
+/** Loudest persona. Equal volume falls to the earlier seat. */
+export function loudestPresserId(
+  seats: readonly { id: string; index: number; personaId: PersonaId | null }[],
+): string | null {
+  if (seats.length === 0) return null;
+  let best = seats[0]!;
+  for (const seat of seats.slice(1)) {
+    const bestScore = best.personaId ? speakPriority(best.personaId) : 0;
+    const score = seat.personaId ? speakPriority(seat.personaId) : 0;
+    if (score > bestScore || (score === bestScore && seat.index < best.index)) best = seat;
+  }
+  return best.id;
+}
+
 export function duelPresserId(
   pair: readonly { id: string; index: number; personaId: PersonaId | null }[],
 ): string | null {
   if (pair.length !== 2) return null;
-  const [left, right] = pair;
-  if (!left || !right) return null;
-  const leftScore = left.personaId ? speakPriority(left.personaId) : 0;
-  const rightScore = right.personaId ? speakPriority(right.personaId) : 0;
-  if (leftScore > rightScore) return left.id;
-  if (rightScore > leftScore) return right.id;
-  return left.index <= right.index ? left.id : right.id;
+  return loudestPresserId(pair);
 }
 
 export function shouldSpeak(id: PersonaId, round: number, index: number, salt: number): boolean {

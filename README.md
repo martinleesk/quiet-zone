@@ -53,7 +53,7 @@ npm run sim -- --games 10
 # npm run sim -- --games 100 --seed 20261104 --out ../../docs/trial/logs/latest.jsonl
 ```
 
-進度行打喺終端。每局一行 JSONL，結尾再寫一份 `*-summary.json`。預設輸出係 `docs/trial/logs/latest.jsonl`（gitignore）。早段 10 局樣本係 `docs/trial/logs/sample.jsonl`。接住 50 局（seed 20261114 起）摘要係 `docs/trial/logs/campaign-50-summary.json`。人格標籤只喺 `debugAi()` 同模擬紀錄，唔進玩家畫面。
+進度行打喺終端。每局一行 JSONL，結尾再寫一份 `*-summary.json`。預設輸出係 `docs/trial/logs/latest.jsonl`（gitignore）。早段 10 局樣本係 `docs/trial/logs/sample.jsonl`。接住 50 局（seed 20261114 起）摘要係 `docs/trial/logs/campaign-50-summary.json`。再 40 局（seed 20261164–20261203）摘要係 `docs/trial/logs/campaign-40-summary.json`。人格標籤只喺 `debugAi()` 同模擬紀錄，唔進玩家畫面。
 
 純 AI 局入面，消音組原本靠第一夜就失聯，快過白天收齊票。而家 謹慎旁觀、安靜跟票、守線穩票、大聲虛張 會放過夜 1；尖銳指控要自己個指控係場上唯一熱點先會第一夜動手；夜獵優先仍然第一夜打釘選席。守線同夜獵嘅掩護會守釘選席。規則 A–G 冇改。
 

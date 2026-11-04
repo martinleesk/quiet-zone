@@ -1,0 +1,43 @@
+{
+  "games": 40,
+  "firstSeed": 20261164,
+  "finished": 40,
+  "wins": {
+    "lighthouse": 2,
+    "silence": 32,
+    "grey": 6,
+    "unfinished": 0
+  },
+  "winRate": {
+    "lighthouse": 0.05,
+    "silence": 0.8,
+    "grey": 0.15
+  },
+  "avgRounds": 4.4,
+  "avgNights": 4.4,
+  "distinctFingerprints": 40,
+  "personaIds": [
+    "accuser",
+    "observer",
+    "bluffer",
+    "follower",
+    "hunter",
+    "anchor"
+  ],
+  "personaLabels": [
+    "尖銳指控",
+    "謹慎旁觀",
+    "大聲虛張",
+    "安靜跟票",
+    "夜獵優先",
+    "守線穩票"
+  ],
+  "silencerPersonaIds": [
+    "observer",
+    "accuser",
+    "follower",
+    "bluffer",
+    "hunter",
+    "anchor"
+  ]
+}

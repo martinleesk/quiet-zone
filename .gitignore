@@ -44,4 +44,5 @@ docs/trial/logs/*
 !docs/trial/logs/sample.jsonl
 !docs/trial/logs/sample-summary.json
 !docs/trial/logs/campaign-50-summary.json
+!docs/trial/logs/campaign-40-summary.json
 !docs/trial/logs/campaign-sample.jsonl

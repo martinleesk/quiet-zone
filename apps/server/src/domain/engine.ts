@@ -4,6 +4,7 @@ import {
   personaById,
   personaForSeat,
   duelPresserId,
+  loudestPresserId,
   shouldSpeak,
   speakPriority,
   type Accusation,
@@ -913,9 +914,11 @@ export class GameEngine {
     const followMajority = humanTargets.length > 0;
     const leader = uniqueLeader(humanTargets);
     const living = this.seats.filter((seat) => seat.alive);
-    const duelPresser = followMajority
+    const ranked = living.map((seat) => ({ id: seat.id, index: this.seatIndex(seat), personaId: seat.personaId }));
+    const duelPresser = followMajority ? null : duelPresserId(ranked);
+    const trioBreak = followMajority || duelPresser || living.length !== 3 || living.some((seat) => !seat.isAi)
       ? null
-      : duelPresserId(living.map((seat) => ({ id: seat.id, index: this.seatIndex(seat), personaId: seat.personaId })));
+      : this.breakThreeWayTie(living);
     for (const seat of this.seats) {
       if (!seat.isAi || !seat.alive) continue;
       let target: string | null;
@@ -927,14 +930,12 @@ export class GameEngine {
         const other = living.find((item) => item.id !== seat.id);
         target = seat.id === duelPresser ? (other?.id ?? null) : null;
         via = seat.id === duelPresser ? "duel" : "duel-hold";
+      } else if (trioBreak) {
+        const broken = trioBreak.get(seat.id);
+        target = broken?.target ?? null;
+        via = broken?.via ?? "trio-hold";
       } else {
-        target = seat.personaId ? voteTarget(this.think(seat)) : null;
-        if (target === seat.id) target = null;
-        if (target) {
-          const picked = this.seatById(target);
-          if (!picked || !picked.alive) target = null;
-          else if (this.factionOf(seat) === "silence" && this.factionOf(picked) === "silence") target = null;
-        }
+        target = this.personaBallot(seat);
         via = "persona";
       }
       const anonymous =
@@ -945,6 +946,41 @@ export class GameEngine {
       this.votes.set(seat.playerId, { target, anonymous });
       if (record) this.pushTrace(seat, "vote", `${via}:${target ?? "abstain"}`);
     }
+  }
+
+  /** Persona ballot, or null when the choice is illegal. Does not apply endgame tie breaks. */
+  private personaBallot(seat: SeatState): string | null {
+    if (!seat.personaId) return null;
+    const target = voteTarget(this.think(seat));
+    if (!target || target === seat.id) return null;
+    const picked = this.seatById(target);
+    if (!picked || !picked.alive) return null;
+    if (this.factionOf(seat) === "silence" && this.factionOf(picked) === "silence") return null;
+    return target;
+  }
+
+  /**
+   * Three all-AI seats voting in a cycle never produce a leader (rule A).
+   * Keep the loudest persona's own target and have the other two abstain.
+   * A ballot that already has a unique leader is left alone.
+   */
+  private breakThreeWayTie(living: SeatState[]): Map<string, { target: string | null; via: string }> | null {
+    const chosen = new Map(living.map((seat) => [seat.id, this.personaBallot(seat)]));
+    if (uniqueLeader(living.map((seat) => chosen.get(seat.id) ?? null)) != null) return null;
+    const presserId = loudestPresserId(
+      living.map((seat) => ({ id: seat.id, index: this.seatIndex(seat), personaId: seat.personaId })),
+    );
+    const others = living
+      .filter((seat) => seat.id !== presserId)
+      .sort((a, b) => this.seatIndex(a) - this.seatIndex(b));
+    const kept = presserId ? chosen.get(presserId) : null;
+    const pressed = kept && others.some((seat) => seat.id === kept) ? kept : (others[0]?.id ?? null);
+    const broken = new Map<string, { target: string | null; via: string }>();
+    for (const seat of living) {
+      const pressing = seat.id === presserId;
+      broken.set(seat.id, { target: pressing ? pressed : null, via: pressing ? "trio" : "trio-hold" });
+    }
+    return broken;
   }
 
   private think(seat: SeatState): ThinkContext {
