@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="消音區">
+  <title>消音區 · 試玩</title>
+  <style>
+    :root {
+      --deep: #0e141b;
+      --card: #17202a;
+      --gold: #e7c27a;
+      --line: #3a4a5c;
+      --text: #e8eef4;
+      --muted: #9aa7b5;
+      --danger: #e07a7a;
+      --ai: #7eb6ff;
+      --lh: #e7c27a;
+      --si: #e07a7a;
+      --gr: #9aa7b5;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--deep); color: var(--text); }
+    body {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      font: 14px/1.35 "PingFang HK", "PingFang TC", "Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    button, input { font: inherit; color: inherit; }
+    button { cursor: pointer; touch-action: manipulation; }
+    .bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 34px;
+      padding: 4px 8px;
+      background: #121a22;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { color: var(--gold); font-weight: 700; white-space: nowrap; }
+    .phase { color: var(--text); font-size: 13px; }
+    .clock { color: var(--gold); font-variant-numeric: tabular-nums; font-size: 13px; }
+    .spacer { flex: 1; }
+    .bar button, .texty {
+      border: 0;
+      background: transparent;
+      color: var(--gold);
+      border-radius: 999px;
+      padding: 4px 8px;
+    }
+    main { flex: 1; min-height: 0; }
+    .shell, .home { display: flex; width: 100%; height: 100%; min-height: 0; }
+    .scene {
+      position: relative;
+      flex: 5;
+      min-width: 0;
+      background: #102028 center/cover no-repeat;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .scene.day { background-image: url("../ui-demo/art/scenes/day_talk.jpg"); }
+    .scene.night { background-image: url("../ui-demo/art/scenes/night.jpg"); }
+    .scene::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(14,20,27,.12), rgba(14,20,27,.28) 42%, rgba(14,20,27,.88));
+      pointer-events: none;
+    }
+    .scene > * { position: relative; z-index: 1; }
+    .copy { padding: 18px 20px; margin-top: auto; }
+    h1 { margin: 0; color: var(--gold); font-size: 34px; font-weight: 650; letter-spacing: .04em; }
+    .sub { margin: 2px 0 8px; font-size: 16px; }
+    .copy p, .pane p { margin: 0 0 6px; }
+    .small, .kicker { color: var(--muted); font-size: 12px; }
+    .pane {
+      flex: 6;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      background: rgba(14,20,27,.94);
+    }
+    .scroll { flex: 1; overflow: auto; padding: 8px 12px; min-height: 0; }
+    .dock {
+      border-top: 1px solid var(--line);
+      padding: 8px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 52%;
+      overflow: auto;
+    }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field span { font-size: 12px; color: var(--muted); }
+    input[type="text"] {
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 8px 10px;
+      font-size: 16px;
+    }
+    .btn {
+      border: 1px solid var(--gold);
+      background: transparent;
+      color: var(--gold);
+      border-radius: 20px;
+      padding: 8px 12px;
+      text-align: center;
+    }
+    .btn.fill { background: var(--gold); color: var(--deep); font-weight: 700; }
+    .btn:disabled { opacity: .45; }
+    .row-btns { display: flex; gap: 8px; }
+    .row-btns .btn { flex: 1; }
+    .code { font-size: 32px; letter-spacing: .28em; margin: 0; }
+    .seats, .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip, .seat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 4px 6px;
+    }
+    .badge {
+      background: var(--ai); color: var(--deep); font-size: 11px; font-weight: 800;
+      border-radius: 999px; padding: 1px 6px;
+    }
+    .stage { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 6px 6px 0; }
+    .ring { display: flex; gap: 3px; flex: 1; min-height: 0; }
+    .ring .seat {
+      flex: 1;
+      min-width: 0;
+      flex-direction: column;
+      justify-content: center;
+      text-align: center;
+      background: rgba(23,32,42,.55);
+      padding: 3px 2px;
+      font-size: 10px;
+      line-height: 1.15;
+    }
+    .seat.me { border-color: var(--gold); background: rgba(36,48,68,.78); }
+    .seat.dead { opacity: .55; }
+    .seat img, .face {
+      width: 26px; height: 32px; object-fit: cover; object-position: center top; border-radius: 6px;
+    }
+    .face { width: 22px; height: 22px; border-radius: 50%; border: 1px solid #8aa0b4; background: #243044; }
+    .bust.f { object-position: 18% 42%; }
+    .bust.m { object-position: 74% 40%; }
+    .table-line {
+      height: 8px; margin: 3px 16px;
+      border-radius: 999px;
+      background: rgba(16,24,32,.45);
+      border: 1px solid rgba(231,194,122,.4);
+      flex: none;
+    }
+    .me-card {
+      display: flex; gap: 8px; margin: 6px;
+      background: rgba(14,20,27,.82);
+      border-radius: 14px; padding: 8px;
+    }
+    .me-card img { width: 52px; height: 66px; object-fit: cover; object-position: center top; border-radius: 12px; flex: none; }
+    .me-card h2 { margin: 0; font-size: 16px; }
+    .log-line { margin: 0 0 4px; }
+    .card {
+      background: #243044;
+      border-radius: 12px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+    }
+    .pick, .chips button {
+      border: 1px solid var(--line);
+      background: #243044;
+      border-radius: 16px;
+      padding: 4px 8px;
+    }
+    .pick.on { border-color: var(--gold); color: var(--gold); }
+    .err { color: var(--danger); }
+    .seal { border: 1px solid var(--danger); color: var(--danger); border-radius: 10px; padding: 6px 8px; margin-bottom: 8px; }
+    .codex {
+      position: fixed; inset: 0; z-index: 5;
+      background: var(--deep);
+      display: flex; flex-direction: column;
+      padding: 8px 12px 12px;
+    }
+    .codex[hidden] { display: none; }
+    .codex h2 { margin: 0 0 4px; color: var(--gold); font-size: 16px; }
+    .codex-body { display: flex; gap: 8px; min-height: 0; flex: 1; }
+    .overview { flex: 1; min-width: 0; overflow: auto; }
+    .band { font-weight: 700; margin: 8px 0 4px; }
+    .lh { color: var(--lh); } .si { color: var(--si); } .gr { color: var(--gr); }
+    .tiles { display: flex; gap: 6px; }
+    .tile {
+      flex: 1; min-width: 0;
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+      padding: 4px; text-align: center;
+    }
+    .tile.on { border-width: 2px; }
+    .tile img, .detail img {
+      width: 44px; height: 56px; object-fit: cover; object-position: center top; border-radius: 8px;
+    }
+    .detail {
+      width: min(320px, 44%);
+      background: #121a22;
+      border-left: 1px solid var(--line);
+      padding: 8px 12px 12px;
+      overflow: auto;
+    }
+    .detail[hidden] { display: none; }
+    .detail-head { display: flex; gap: 10px; align-items: flex-start; }
+    .detail h3 { margin: 0; font-size: 18px; }
+    @media (orientation: portrait) {
+      .shell, .home { flex-direction: column; }
+      .scene { flex: none; min-height: 38dvh; }
+      h1 { font-size: 28px; }
+      .hint-turn { display: inline; }
+    }
+    .hint-turn { display: none; color: var(--muted); font-size: 12px; }
+    @media (max-height: 420px) {
+      h1 { font-size: 26px; }
+      .copy { padding: 10px 14px; }
+      .me-card img { width: 42px; height: 54px; }
+      .dock { max-height: 58%; }
+    }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <span class="brand">消音區</span>
+    <span class="phase" id="phase-label">試玩</span>
+    <span class="clock" id="clock"></span>
+    <span class="hint-turn">請轉橫向</span>
+    <span class="spacer"></span>
+    <button type="button" id="open-codex">角色圖鑑</button>
+    <button type="button" id="leave" hidden>離開</button>
+  </header>
+  <main id="app"></main>
+  <section class="codex" id="codex" hidden>
+    <div style="display:flex;align-items:center;gap:8px">
+      <h2>標準 Mode</h2>
+      <span class="spacer"></span>
+      <button type="button" class="texty" id="close-codex">關閉</button>
+    </div>
+    <p class="small">公開規則。撳一個角色先睇陣營同技能，唔會顯示席上嘅私人身分。</p>
+    <div class="codex-body">
+      <div class="overview" id="codex-overview"></div>
+      <aside class="detail" id="detail" hidden>
+        <div class="detail-head">
+          <span id="detail-busts"></span>
+          <div style="flex:1;min-width:0">
+            <h3 id="detail-name"></h3>
+            <div id="detail-faction"></div>
+          </div>
+        </div>
+        <p id="detail-skill"></p>
+        <div class="kicker">點贏</div>
+        <p id="detail-win"></p>
+      </aside>
+    </div>
+  </section>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

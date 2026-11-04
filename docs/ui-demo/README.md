@@ -12,7 +12,7 @@
 
 <https://raw.githack.com/martinleesk/quiet-zone/cursor/codex-detail-safe-text-6120/docs/ui-demo/index.html>
 
-請轉橫向。呢度係畫面示範，按鈕唔會連真正嘅房間。
+請轉橫向。呢度係畫面示範，按鈕唔會連真正嘅房間。想自己打一局，開 [`docs/trial`](../trial/README.md)。
 
 ## 本機開
 

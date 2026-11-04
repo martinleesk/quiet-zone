@@ -68,13 +68,15 @@ App 預設連 `ws://127.0.0.1:8787/ws`。Android 模擬器改做 `ws://10.0.2.2:
 
 桌面跑唔到 Flutter 時，用上面嘅 `npm test` 同 `npm run demo` 就睇到完整規則循環。
 
-### 畫面示範（手機瀏覽器）
+### 試玩（手機瀏覽器）
 
-唔使裝 Flutter。橫向打開就見到主頁、組席、圖鑑（撳角色先出技能）、燈亮同熄燈，用同一套 3D 圖：
+唔使裝 Flutter，亦唔使開伺服器。橫向打開，一個人打標準 Mode：AI 補滿 11 席，行燈亮、草稿、投票、熄燈同終局。
 
-<https://raw.githack.com/martinleesk/quiet-zone/main/docs/ui-demo/index.html>
+<https://raw.githack.com/martinleesk/quiet-zone/main/docs/trial/index.html>
 
-點開同本機伺服器見 [`docs/ui-demo/README.md`](docs/ui-demo/README.md)。Flutter 網頁入口係 `flutter run -d chrome -t lib/demo_main.dart`。Pages 設成 GitHub Actions 之後，workflow 會發佈到 `https://martinleesk.github.io/quiet-zone/`。
+點開同本機指令見 [`docs/trial/README.md`](docs/trial/README.md)。Flutter 網頁入口係 `flutter run -d chrome -t lib/trial_main.dart`。Pages 設成 GitHub Actions 之後，試玩會發佈到 `https://martinleesk.github.io/quiet-zone/`。
+
+靜態畫面切換（未連局）仍然喺 [`docs/ui-demo`](docs/ui-demo/README.md)。
 
 ## 邊度做咗、邊度係 stub
 

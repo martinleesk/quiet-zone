@@ -1,4 +1,4 @@
-name: UI demo
+name: Playable trial
 
 on:
   push:
@@ -23,10 +23,14 @@ jobs:
         with:
           channel: stable
           cache: true
+      - working-directory: apps/server
+        run: npm ci
+      - working-directory: apps/server
+        run: npm run build:trial
       - working-directory: apps/mobile
         run: flutter pub get
       - working-directory: apps/mobile
-        run: flutter build web --release -t lib/demo_main.dart --base-href /quiet-zone/
+        run: flutter build web --release -t lib/trial_main.dart --base-href /quiet-zone/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: apps/mobile/build/web

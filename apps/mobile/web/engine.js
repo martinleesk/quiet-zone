@@ -1,0 +1,1593 @@
+"use strict";
+var QuietZoneTrial = (() => {
+  var __defProp = Object.defineProperty;
+  var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+  var __getOwnPropNames = Object.getOwnPropertyNames;
+  var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __export = (target, all) => {
+    for (var name in all)
+      __defProp(target, name, { get: all[name], enumerable: true });
+  };
+  var __copyProps = (to, from, except, desc) => {
+    if (from && typeof from === "object" || typeof from === "function") {
+      for (let key of __getOwnPropNames(from))
+        if (!__hasOwnProp.call(to, key) && key !== except)
+          __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+    }
+    return to;
+  };
+  var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+  // src/trial/browser.ts
+  var browser_exports = {};
+  __export(browser_exports, {
+    close: () => close,
+    open: () => open,
+    send: () => send
+  });
+
+  // src/config/rules.ts
+  var RULES = {
+    id: "standard-mvp-2026-11-04",
+    mode: "standard",
+    seatCount: 11,
+    composition: { lighthouse: 7, silence: 3, grey: 1 },
+    /** A. 平票 → 流局，唔隔離 */
+    tieVote: "no_isolation",
+    /** B. 逾時預設：草稿可空白、投票當棄權、熄燈當跳過 */
+    timeouts: {
+      draft: "empty",
+      vote: "abstain",
+      night: "skip"
+    },
+    /** C. AI 可抽消音手；模板詞庫＋跟多數；徽章永久 */
+    ai: {
+      mayDrawSilencer: true,
+      behavior: "template_phrase_bank_follow_majority",
+      badgePermanent: true
+    },
+    /** D. 封口：只可投票，唔可以發言；結果卡係 stub */
+    seal: {
+      speech: false,
+      vote: true,
+      resultCard: "stub"
+    },
+    /** E. 11 人：成功失聯 3 次 → 消音組勝（灰頻未獨贏先） */
+    silenceWin: {
+      players: 11,
+      successfulDisconnects: 3
+    },
+    /** F. 公開隔離唔披露陣營；只有回波師私下收到殘片 */
+    isolation: {
+      revealFaction: false,
+      echoRemnant: "private"
+    },
+    /**
+     * G. 掩護成功計作窗口第 1 回合。
+     * 下一回合唔可以成功；再下一回合可以再成功。
+     * `blockedFollowingTurns: 1` ⇒ 成功喺第 N 夜，第 N+1 夜失敗，第 N+2 夜可再成功。
+     */
+    cover: {
+      successCountsAsTurn: 1,
+      blockedFollowingTurns: 1
+    },
+    /** 灰頻獨贏優先於消音組同燈塔網 */
+    greyWin: {
+      minCorrectSilenceMarks: 2,
+      mustBeAlive: true,
+      priority: "before_silence_and_lighthouse"
+    },
+    /** Standard skill quotas. A–G above stay as locked. */
+    skills: {
+      pinPerDay: 1,
+      linkPerDay: 1,
+      fakePerGame: 2,
+      anonymousVotesPerGame: 1
+    },
+    phases: ["boot", "day_talk", "draft", "vote", "resolve", "night", "check"],
+    phaseMs: {
+      boot: 8e3,
+      day_talk: 4e4,
+      draft: 25e3,
+      vote: 25e3,
+      resolve: 5e3,
+      night: 25e3,
+      check: 5e3
+    }
+  };
+
+  // src/domain/phrases.ts
+  var TALK_PHRASES = [
+    "\u6211\u66AB\u6642\u672A\u6709\u5BE6\u9318\uFF0C\u60F3\u518D\u807D\u4E00\u8F2A\u3002",
+    "\u5462\u7968\u6211\u50BE\u5411\u8DDF\u591A\u6578\uFF0C\u4F46\u6703\u4FDD\u7559\u61F7\u7591\u3002",
+    "\u9694\u96E2\u8981\u5C0F\u5FC3\uFF0C\u932F\u7968\u90FD\u6703\u7559\u4F4E\u7DDA\u7D22\u3002",
+    "\u6211\u7528\u6A21\u677F\uFF1A\u672A\u898B\u8DB3\u5920\u5931\u806F\u75D5\u8DE1\u3002",
+    "\u53EF\u5514\u53EF\u4EE5\u6709\u4EBA\u7528\u77ED\u53E5\u8B1B\u4E0B\u4F60\u898B\u5230\u5605\u8A0A\u865F\uFF1F",
+    "\u6211\u4ECA\u8F2A\u5514\u722D\u8FAF\uFF0C\u4EA4\u4F4E\u4E00\u500B\u89C0\u5BDF\u5C31\u5F97\u3002"
+  ];
+  var DRAFT_PHRASES = [
+    "\u6211\u89BA\u5F97\u8981\u518D\u6838\u5C0D\u4E00\u6B21\u5148\u597D\u9694\u96E2\u3002",
+    "\u6211\u8DDF\u591A\u6578\u7968\uFF0C\u5514\u8FFD\u52A0\u6307\u63A7\u3002",
+    "\u7184\u71C8\u4E4B\u5F8C\u5148\u518D\u7747\u5931\u806F\u908A\u500B\u3002",
+    "\u6211\u672A\u6709\u65B0\u6599\uFF0C\u4FDD\u6301\u89C0\u671B\u3002"
+  ];
+  var SILENCE_TEMPLATES = [
+    "\u4ECA\u591C\u6211\u5EFA\u8B70\u5931\u806F\u4E00\u500B\u71C8\u5854\u5E2D\u3002",
+    "\u53EF\u80FD\u6709\u63A9\u8B77\uFF0C\u63DB\u4E00\u500B\u76EE\u6A19\u3002",
+    "\u6211\u8DDF\u7D44\u5167\u5605\u9078\u64C7\u3002",
+    "\u4ECA\u8F2A\u8DF3\u904E\uFF0C\u5514\u597D\u66B4\u9732\u3002",
+    "\u5C0F\u5FC3\u7070\u983B\uFF0C\u5514\u597D\u4E82\u9001\u982D\u3002"
+  ];
+  var PHASE_TIPS = {
+    day_talk: { id: "day_talk", text: "\u71C8\u4EAE\u7528\u77ED\u53E5\u5C31\u5F97\u3002\u64B3\u6E96\u5099\u597D\u5148\u6703\u53BB\u8349\u7A3F\u3002" },
+    vote: { id: "vote", text: "\u6295\u4E00\u500B\u4EBA\uFF0C\u6216\u8005\u68C4\u6B0A\u3002\u5E73\u7968\u5C31\u6D41\u5C40\uFF0C\u5514\u6703\u9694\u96E2\u3002" },
+    night: { id: "night", text: "\u7184\u71C8\u5148\u4EA4\u884C\u52D5\u3002\u5187\u6280\u80FD\u53EF\u4EE5\u8DF3\u904E\u3002" },
+    grey_marks: { id: "grey_marks", text: "\u6A19\u8A18\u53EA\u5F97\u4F60\u77E5\u3002\u6B63\u78BA\u6A19\u4E2D\u5169\u540D\u6D88\u97F3\uFF0C\u7070\u983B\u53EF\u4EE5\u7368\u8D0F\u3002" }
+  };
+  var AI_NICKNAMES = [
+    "\u9727\u6E2F\u71C8",
+    "\u975C\u9ED8\u9375",
+    "\u591C\u73ED\u7C3F",
+    "\u672A\u8B80\u8A0A",
+    "\u4F4E\u983B",
+    "\u9694\u97F3\u68C9",
+    "\u5F8C\u5DF7",
+    "\u5F85\u547D",
+    "\u7A7A\u767D\u983B",
+    "\u77ED\u8A0A"
+  ];
+
+  // src/domain/roles.ts
+  var FACTION_LABEL = {
+    lighthouse: "\u71C8\u5854\u7DB2",
+    silence: "\u6D88\u97F3\u7D44",
+    grey: "\u7070\u983B"
+  };
+  var ROLES = {
+    tip: {
+      id: "tip",
+      name: "\u7DDA\u5831\u54E1",
+      faction: "lighthouse",
+      skill: "\u91D8\u9078\u6B98\u8A0A\uFF1A\u6BCF\u500B\u71C8\u4EAE\u53EF\u91D8\u4E00\u689D\u516C\u958B\u8CC7\u8A0A\u4E0A\u6642\u9593\u7DDA\uFF0C\u5514\u4F54\u767C\u8A00\u683C\u3002"
+    },
+    sweep: {
+      id: "sweep",
+      name: "\u6383\u983B\u54E1",
+      faction: "lighthouse",
+      skill: "\u7184\u71C8\u6383\u983B\uFF1A\u79C1\u4E0B\u5F97\u77E5\u76EE\u6A19\u4FC2\u300C\u6D88\u97F3\u75D5\u8DE1\u300D\u5B9A\u300C\u8A0A\u865F\u4E7E\u6DE8\u300D\u3002"
+    },
+    cover: {
+      id: "cover",
+      name: "\u63A9\u8B77\u54E1",
+      faction: "lighthouse",
+      skill: "\u81E8\u6642\u63A9\u8B77\uFF1A\u514D\u75AB\u8A72\u591C\u5931\u806F\u3002\u6210\u529F\u5F8C\u4E0B\u4E00\u591C\u5514\u53EF\u4EE5\u518D\u6210\u529F\u3002"
+    },
+    echo: {
+      id: "echo",
+      name: "\u56DE\u6CE2\u5E2B",
+      faction: "lighthouse",
+      skill: "\u5931\u806F\u56DE\u6CE2\uFF1A\u6709\u4EBA\u88AB\u6295\u7968\u9694\u96E2\u5F8C\uFF0C\u4F60\u79C1\u4E0B\u6536\u5230\u9663\u71DF\u6B98\u7247\u3002"
+    },
+    link: {
+      id: "link",
+      name: "\u901A\u806F\u5B98",
+      faction: "lighthouse",
+      skill: "\u6838\u5C0D\u901A\u806F\uFF1A\u6BCF\u500B\u71C8\u4EAE\u53EF\u67E5\u4E00\u4EBA\u4E0A\u56DE\u5408\u7528\u904E\u4E3B\u52D5\u6280\u80FD\u672A\uFF0C\u5514\u6703\u8A71\u4F60\u77E5\u4FC2\u908A\u7A2E\u3002"
+    },
+    civilian: {
+      id: "civilian",
+      name: "\u71C8\u5854\u9592\u8077",
+      faction: "lighthouse",
+      skill: "\u7121\u4E3B\u52D5\u6280\u80FD\u3002\u4F60\u53EF\u4EE5\u767C\u8A00\u3001\u8349\u7A3F\u3001\u6295\u7968\u3002"
+    },
+    silencer: {
+      id: "silencer",
+      name: "\u6D88\u97F3\u624B",
+      faction: "silence",
+      skill: "\u57F7\u884C\u5931\u806F\uFF1A\u7184\u71C8\u4EE4\u4E00\u540D\u672A\u53D7\u63A9\u8B77\u5605\u73A9\u5BB6\u5931\u806F\u79FB\u51FA\u3002"
+    },
+    decoy: {
+      id: "decoy",
+      name: "\u5047\u8A0A\u54E1",
+      faction: "silence",
+      skill: "\u6295\u653E\u5047\u8A0A\uFF1A\u6BCF\u5C40\u5169\u6B21\u3002\u53EF\u4EE5\u5C07\u91D8\u9078\u6A19\u505A\u5F85\u6838\u5BE6\uFF0C\u6216\u8005\u653E\u4E00\u53E5\u4F86\u6E90\u672A\u6838\u3002"
+    },
+    plant: {
+      id: "plant",
+      name: "\u5F71\u5167\u61C9",
+      faction: "silence",
+      skill: "\u8A0A\u865F\u9727\uFF1A\u7B2C\u4E00\u6B21\u88AB\u6383\u983B\u56FA\u5B9A\u56DE\u300C\u8A0A\u865F\u4E7E\u6DE8\u300D\u3002\u6BCF\u5C40\u4E00\u6B21\u533F\u540D\u7968\u3002"
+    },
+    warrant: {
+      id: "warrant",
+      name: "\u5B64\u8B49\u5BA2",
+      faction: "grey",
+      skill: "\u79C1\u5BC6\u6A19\u8A18\u6D88\u97F3\u7D44\u3002\u4ECD\u5728\u5834\u4E14\u6B63\u78BA\u6A19\u8A18\u9054 2 \u5373\u7070\u983B\u7368\u8D0F\u3002\u6BCF\u5C40\u53EF\u5C01\u53E3\u4E00\u4EBA\u3002"
+    }
+  };
+  var STANDARD_DEAL = [
+    "tip",
+    "sweep",
+    "cover",
+    "echo",
+    "link",
+    "civilian",
+    "civilian",
+    "silencer",
+    "decoy",
+    "plant",
+    "warrant"
+  ];
+  var PHASE_LABEL = {
+    lobby: "\u7D44\u5E2D",
+    boot: "\u958B\u5C40\u62BD\u8EAB\u5206",
+    day_talk: "\u71C8\u4EAE\u8A0E\u8AD6",
+    draft: "\u79C1\u4EBA\u8349\u7A3F",
+    vote: "\u6295\u7968\u9694\u96E2",
+    resolve: "\u7D50\u7B97",
+    night: "\u7184\u71C8\u884C\u52D5",
+    check: "\u52DD\u8CA0\u6AA2\u5B9A",
+    ended: "\u7D42\u5C40"
+  };
+
+  // src/domain/votes.ts
+  function uniqueLeader(targets) {
+    const counts = /* @__PURE__ */ new Map();
+    for (const target of targets) {
+      if (!target) continue;
+      counts.set(target, (counts.get(target) ?? 0) + 1);
+    }
+    let leader = null;
+    let best = 0;
+    let tie = false;
+    for (const [id, count] of counts) {
+      if (count > best) {
+        leader = id;
+        best = count;
+        tie = false;
+      } else if (count === best) {
+        tie = true;
+      }
+    }
+    if (tie || leader == null) return null;
+    return leader;
+  }
+
+  // src/domain/engine.ts
+  var NIGHT_LABEL = {
+    disconnect: { label: "\u57F7\u884C\u5931\u806F", needsTarget: true },
+    cover: { label: "\u81E8\u6642\u63A9\u8B77", needsTarget: true },
+    sweep: { label: "\u7184\u71C8\u6383\u983B", needsTarget: true },
+    mark: { label: "\u6A19\u8A18\u6D88\u97F3", needsTarget: true },
+    seal: { label: "\u62BD\u6A23\u5C01\u53E3", needsTarget: true },
+    skip: { label: "\u8DF3\u904E\u4ECA\u591C", needsTarget: false }
+  };
+  function ok() {
+    return { ok: true };
+  }
+  function fail(code, message) {
+    return { ok: false, code, message };
+  }
+  function shuffle(items, rng) {
+    const arr = items.slice();
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+    return arr;
+  }
+  var GameEngine = class {
+    rng;
+    autoAi;
+    seats = [];
+    phase = "lobby";
+    round = 0;
+    nightNumber = 0;
+    banner = "\u79C1\u4EBA\u623F\u672A\u958B\u5C40\u3002\u7A7A\u4F4D\u6703\u7531 AI \u88DC\u4E0A\uFF0C\u5FBD\u7AE0\u6703\u4E00\u76F4\u986F\u793A\u3002";
+    log = [];
+    successfulDisconnects = 0;
+    winner = null;
+    votes = /* @__PURE__ */ new Map();
+    drafts = /* @__PURE__ */ new Map();
+    nightActions = /* @__PURE__ */ new Map();
+    chatCount = /* @__PURE__ */ new Map();
+    pins = [];
+    pinSeq = 0;
+    tokenSeq = 0;
+    silenceNotes = [];
+    silenceSent = /* @__PURE__ */ new Map();
+    deadlineAt = null;
+    constructor(opts = {}) {
+      this.rng = opts.rng ?? Math.random;
+      this.autoAi = opts.autoAi ?? false;
+    }
+    getPhase() {
+      return this.phase;
+    }
+    getRound() {
+      return this.round;
+    }
+    getNight() {
+      return this.nightNumber;
+    }
+    getDisconnects() {
+      return this.successfulDisconnects;
+    }
+    /** Absolute time in ms when the current phase should advance. Null clears it. */
+    setPhaseDeadline(at) {
+      this.deadlineAt = at;
+    }
+    addPlayer(playerId, nickname) {
+      if (this.phase !== "lobby") return fail("already_started", "\u5C40\u5DF2\u958B\u59CB\uFF0C\u5514\u53EF\u4EE5\u518D\u5165\u5EA7\u3002");
+      if (this.seats.length >= RULES.seatCount) return fail("room_full", "\u5E2D\u4F4D\u5DF2\u6EFF\u3002");
+      const name = cleanName(nickname);
+      if (!name) return fail("nickname", "\u8ACB\u586B\u4E00\u500B\u66B1\u7A31\u3002");
+      const seat = this.makeSeat(playerId, name, false);
+      seat.reclaimToken = this.nextToken();
+      this.seats.push(seat);
+      return { ok: true, seatId: seat.id };
+    }
+    fillWithAi() {
+      if (this.phase !== "lobby") return 0;
+      let added = 0;
+      while (this.seats.length < RULES.seatCount) {
+        const index = this.seats.length;
+        const nickname = AI_NICKNAMES[index % AI_NICKNAMES.length] ?? "AI";
+        const playerId = `ai-${this.seats.length + 1}`;
+        this.seats.push(this.makeSeat(playerId, nickname, true));
+        added += 1;
+      }
+      return added;
+    }
+    /**
+     * Deal roles and enter Boot. `deal` is seat-ordered and only for tests / the scripted demo.
+     * Clients never receive the full deal.
+     */
+    setLobbyReady(playerId, ready) {
+      if (this.phase !== "lobby") return fail("locked", "\u623F\u9593\u5DF2\u9396\u5B9A\uFF0C\u5514\u53EF\u4EE5\u518D\u6539\u6E96\u5099\u3002");
+      const seat = this.seats.find((item) => item.playerId === playerId);
+      if (!seat) return fail("not_seated", "\u4F60\u672A\u5165\u5EA7\u3002");
+      if (seat.isAi) return fail("not_your_skill", "AI \u5E2D\u5514\u4F7F\u6E96\u5099\u3002");
+      seat.lobbyReady = ready;
+      return ok();
+    }
+    /**
+     * Host start. When `enforceLobbyReady` is set, every seated human must be ready.
+     * Empty seats are filled with AI, then the room locks at Boot.
+     */
+    start(deal, opts) {
+      if (this.phase !== "lobby") return fail("already_started", "\u5C40\u5DF2\u958B\u59CB\u3002");
+      if (opts?.enforceLobbyReady) {
+        const humans = this.seats.filter((seat) => !seat.isAi);
+        if (humans.length === 0 || humans.some((seat) => !seat.lobbyReady)) {
+          return fail("not_ready", "\u672A\u9F4A\u4EBA\u6E96\u5099\u597D\uFF0C\u672A\u53EF\u4EE5\u958B\u5C40\u3002");
+        }
+      }
+      this.fillWithAi();
+      if (this.seats.length !== RULES.seatCount) {
+        return fail("need_seats", `\u8981 ${RULES.seatCount} \u5E2D\u5148\u53EF\u4EE5\u958B\u5C40\u3002`);
+      }
+      const roles = deal ? [...deal] : shuffle(STANDARD_DEAL, this.rng);
+      this.assertDeal(roles);
+      for (let i = 0; i < this.seats.length; i++) {
+        const seat = this.seats[i];
+        const roleId = roles[i];
+        seat.roleId = roleId;
+        seat.sweepFog = roleId === "plant" ? 1 : 0;
+        seat.fakeCharges = roleId === "decoy" ? RULES.skills.fakePerGame : 0;
+      }
+      this.phase = "boot";
+      for (const seat of this.seats) seat.ready = false;
+      this.banner = "\u8EAB\u5206\u5DF2\u79C1\u4E0B\u6D3E\u767C\u3002\u516C\u958B\u7D44\u6210\uFF1A\u71C8\u5854\u7DB2 \xD77\u3001\u6D88\u97F3\u7D44 \xD73\u3001\u7070\u983B \xD71\u3002";
+      this.pushLog("\u6A19\u6E96 Mode \u958B\u5C40\u3002\u516C\u958B\u7D44\u6210\uFF1A\u71C8\u5854\u7DB2 \xD77\u3001\u6D88\u97F3\u7D44 \xD73\u3001\u7070\u983B \xD71\u3002\u4F60\u53EA\u6703\u6536\u5230\u81EA\u5DF1\u5605\u8EAB\u5206\u3002");
+      this.markAiReady();
+      return ok();
+    }
+    submitChat(playerId, text) {
+      const seat = this.requireLiving(playerId);
+      if (!seat.ok) return seat;
+      if (this.phase !== "day_talk") return fail("wrong_phase", "\u800C\u5BB6\u5514\u4FC2\u71C8\u4EAE\u8A0E\u8AD6\u3002");
+      if (this.isSealed(seat.seat)) return fail("sealed", "\u4F60\u88AB\u5C01\u53E3\uFF0C\u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\u3002");
+      const body = text.trim().slice(0, 80);
+      if (!body) return fail("empty", "\u8B1B\u53E5\u77ED\u5605\u5148\u3002");
+      const used = this.chatCount.get(playerId) ?? 0;
+      if (used >= 4) return fail("limit", "\u4F60\u4ECA\u8F2A\u767C\u8A00\u5DF2\u5920\uFF0C\u7559\u8FD4\u4F4D\u7F6E\u7540\u4EBA\u3002");
+      this.chatCount.set(playerId, used + 1);
+      this.pushLog(`${seat.seat.nickname}\uFF1A${body}`);
+      return ok();
+    }
+    submitDraft(playerId, text) {
+      const seat = this.requireLiving(playerId);
+      if (!seat.ok) return seat;
+      if (this.phase !== "draft") return fail("wrong_phase", "\u800C\u5BB6\u5514\u4FC2\u79C1\u4EBA\u8349\u7A3F\u3002");
+      if (this.isSealed(seat.seat)) return fail("sealed", "\u4F60\u88AB\u5C01\u53E3\uFF0C\u8349\u7A3F\u90FD\u4EA4\u5514\u5230\u3002");
+      this.drafts.set(playerId, text.trim().slice(0, 80));
+      return ok();
+    }
+    submitVote(playerId, targetSeatId, anonymous = false) {
+      const seat = this.requireLiving(playerId);
+      if (!seat.ok) return seat;
+      if (this.phase !== "vote") return fail("wrong_phase", "\u800C\u5BB6\u5514\u4FC2\u6295\u7968\u3002");
+      if (anonymous) {
+        if (seat.seat.roleId !== "plant") return fail("not_your_skill", "\u53EA\u6709\u5F71\u5167\u61C9\u53EF\u4EE5\u6295\u533F\u540D\u7968\u3002");
+        if (seat.seat.anonymousVoteUsed) return fail("anonymous_spent", "\u4F60\u672C\u5C40\u533F\u540D\u7968\u5DF2\u7D93\u7528\u904E\u3002");
+      }
+      if (targetSeatId == null) {
+        this.votes.set(playerId, { target: null, anonymous });
+        if (this.autoAi) this.syncAiVotes();
+        return ok();
+      }
+      const target = this.seatById(targetSeatId);
+      if (!target || !target.alive) return fail("illegal_target", "\u7968\u53EA\u53EF\u4EE5\u6295\u4FFE\u4ECD\u5728\u5834\u5605\u4EBA\u3002");
+      if (target.id === seat.seat.id) return fail("illegal_target", "\u5514\u53EF\u4EE5\u6295\u81EA\u5DF1\u3002");
+      this.votes.set(playerId, { target: target.id, anonymous });
+      if (this.autoAi) this.syncAiVotes();
+      return ok();
+    }
+    /** 線報員：釘一條公開殘訊。每輪燈亮一次，唔佔發言格。 */
+    submitPin(playerId, text) {
+      const seat = this.requireLiving(playerId);
+      if (!seat.ok) return seat;
+      if (this.phase !== "day_talk") return fail("wrong_phase", "\u91D8\u9078\u53EA\u53EF\u4EE5\u55BA\u71C8\u4EAE\u505A\u3002");
+      if (seat.seat.roleId !== "tip") return fail("not_your_skill", "\u53EA\u6709\u7DDA\u5831\u54E1\u53EF\u4EE5\u91D8\u9078\u3002");
+      if (this.isSealed(seat.seat)) return fail("sealed", "\u4F60\u88AB\u5C01\u53E3\uFF0C\u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\u3002");
+      if (seat.seat.pinnedThisRound) return fail("pin_spent", "\u4F60\u4ECA\u8F2A\u5DF2\u7D93\u91D8\u904E\u3002");
+      const body = text.trim().slice(0, 80);
+      if (!body) return fail("empty", "\u91D8\u9078\u8981\u6709\u4E00\u53E5\u5167\u5BB9\u3002");
+      this.pinSeq += 1;
+      this.pins.push({ id: `pin${this.pinSeq}`, text: body, unverified: false });
+      seat.seat.pinnedThisRound = true;
+      this.markSkill(seat.seat);
+      this.pushLog(`\u91D8\u9078\uFF5C${seat.seat.nickname}\uFF1A${body}`);
+      return ok();
+    }
+    /** 通聯官：私下得知目標上回合用過主動技能未。唔講係邊種。 */
+    submitLink(playerId, targetSeatId) {
+      const seat = this.requireLiving(playerId);
+      if (!seat.ok) return seat;
+      if (this.phase !== "day_talk") return fail("wrong_phase", "\u6838\u5C0D\u901A\u806F\u53EA\u53EF\u4EE5\u55BA\u71C8\u4EAE\u505A\u3002");
+      if (seat.seat.roleId !== "link") return fail("not_your_skill", "\u53EA\u6709\u901A\u806F\u5B98\u53EF\u4EE5\u6838\u5C0D\u3002");
+      if (this.isSealed(seat.seat)) return fail("sealed", "\u4F60\u88AB\u5C01\u53E3\uFF0C\u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\u3002");
+      if (seat.seat.linkedThisRound) return fail("link_spent", "\u4F60\u4ECA\u8F2A\u5DF2\u7D93\u6838\u5C0D\u904E\u3002");
+      const target = this.seatById(targetSeatId);
+      if (!target || !target.alive) return fail("illegal_target", "\u76EE\u6A19\u8981\u4ECD\u7136\u5728\u5834\u3002");
+      if (target.id === seat.seat.id) return fail("illegal_target", "\u5514\u53EF\u4EE5\u6838\u5C0D\u81EA\u5DF1\u3002");
+      seat.seat.linkedThisRound = true;
+      this.markSkill(seat.seat);
+      const used = target.usedSkillLastRound ? "\u7528\u904E" : "\u672A\u7528\u904E";
+      seat.seat.inbox.push(`\u901A\u806F\uFF1A${target.nickname} \u4E0A\u56DE\u5408${used}\u4E3B\u52D5\u6280\u80FD\u3002`);
+      return ok();
+    }
+    /**
+     * 假訊員：每局兩次。flag 將已釘殘訊標做待核實；plant 放一句來源未核。
+     * 燈亮同熄燈都可以用。公開唔會講係邊個放。
+     */
+    submitFake(playerId, input) {
+      const seat = this.requireLiving(playerId);
+      if (!seat.ok) return seat;
+      if (this.phase !== "day_talk" && this.phase !== "night") return fail("wrong_phase", "\u5047\u8A0A\u53EA\u53EF\u4EE5\u55BA\u71C8\u4EAE\u6216\u8005\u7184\u71C8\u653E\u3002");
+      if (seat.seat.roleId !== "decoy") return fail("not_your_skill", "\u53EA\u6709\u5047\u8A0A\u54E1\u53EF\u4EE5\u6295\u653E\u5047\u8A0A\u3002");
+      if (this.phase === "day_talk" && this.isSealed(seat.seat)) return fail("sealed", "\u4F60\u88AB\u5C01\u53E3\uFF0C\u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\u3002");
+      if (seat.seat.fakeCharges <= 0) return fail("quota", "\u4F60\u672C\u5C40\u5047\u8A0A\u984D\u5EA6\u5DF2\u7528\u5B8C\u3002");
+      if (input.mode === "flag") {
+        const pin = this.pins.find((item) => item.id === input.pinId);
+        if (!pin) return fail("illegal_target", "\u8981\u63C0\u4E00\u689D\u5DF2\u7D93\u91D8\u4F4E\u5605\u6B98\u8A0A\u3002");
+        if (pin.unverified) return fail("already_flagged", "\u5462\u689D\u5DF2\u7D93\u4FC2\u5F85\u6838\u5BE6\u3002");
+        pin.unverified = true;
+        this.pushLog("\u4E00\u689D\u91D8\u9078\u88AB\u6A19\u505A\u5F85\u6838\u5BE6\u3002");
+      } else {
+        const body = (input.text ?? "").trim().slice(0, 80);
+        if (!body) return fail("empty", "\u5047\u8A0A\u8981\u6709\u4E00\u53E5\u5167\u5BB9\u3002");
+        this.pushLog(`\u4F86\u6E90\u672A\u6838\uFF1A${body}`);
+      }
+      seat.seat.fakeCharges -= 1;
+      this.markSkill(seat.seat);
+      seat.seat.inbox.push(`\u5047\u8A0A\u5DF2\u6295\u653E\u3002\u5269\u9918 ${seat.seat.fakeCharges} \u6B21\u3002`);
+      return ok();
+    }
+    /** In-game drop: the same seat becomes AI and keeps role plus private state. */
+    takeoverAsAi(playerId) {
+      const seat = this.seats.find((item) => item.playerId === playerId);
+      if (!seat) return fail("not_seated", "\u4F60\u672A\u5165\u5EA7\u3002");
+      if (this.phase === "lobby") return fail("not_started", "\u672A\u958B\u5C40\u3002");
+      if (seat.isAi) return ok();
+      seat.isAi = true;
+      this.pushLog(`${seat.nickname} \u65B7\u7DDA\uFF0CAI \u63A5\u7BA1\u540C\u4E00\u5E2D\u3002\u5FBD\u7AE0\u4FDD\u6301\u3002`);
+      if (this.autoAi && seat.alive) {
+        this.catchUpAi(seat);
+        seat.ready = true;
+      }
+      return ok();
+    }
+    removeLobbyPlayer(playerId) {
+      if (this.phase !== "lobby") return;
+      const index = this.seats.findIndex((seat) => seat.playerId === playerId);
+      if (index >= 0) this.seats.splice(index, 1);
+    }
+    /** Mark or clear one private silence suspect. Does not reveal whether it is correct. */
+    submitSuspect(playerId, targetSeatId, marked) {
+      const seat = this.requireLiving(playerId);
+      if (!seat.ok) return seat;
+      if (seat.seat.roleId !== "warrant") return fail("not_your_skill", "\u53EA\u6709\u5B64\u8B49\u5BA2\u53EF\u4EE5\u6A19\u8A18\u3002");
+      if (this.phase !== "day_talk" && this.phase !== "draft" && this.phase !== "night") {
+        return fail("wrong_phase", "\u6A19\u8A18\u53EF\u4EE5\u55BA\u71C8\u4EAE\u3001\u8349\u7A3F\u6216\u8005\u7184\u71C8\u6539\u3002");
+      }
+      if (this.isSealed(seat.seat) && this.phase !== "night") return fail("sealed", "\u4F60\u88AB\u5C01\u53E3\uFF0C\u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\u3002");
+      const target = this.seatById(targetSeatId);
+      if (!target || !target.alive) return fail("illegal_target", "\u76EE\u6A19\u8981\u4ECD\u7136\u5728\u5834\u3002");
+      if (target.id === seat.seat.id) return fail("illegal_target", "\u5514\u53EF\u4EE5\u6A19\u8A18\u81EA\u5DF1\u3002");
+      const has = seat.seat.silenceMarks.includes(target.id);
+      if (marked && !has) {
+        seat.seat.silenceMarks.push(target.id);
+        this.markSkill(seat.seat);
+        seat.seat.inbox.push(`\u5DF2\u6A19\u8A18 ${target.nickname}\u3002\u6A19\u8A18\u53EA\u5F97\u4F60\u77E5\u3002`);
+      } else if (!marked && has) {
+        seat.seat.silenceMarks = seat.seat.silenceMarks.filter((id) => id !== target.id);
+        this.markSkill(seat.seat);
+        seat.seat.inbox.push(`\u5DF2\u53D6\u6D88\u6A19\u8A18 ${target.nickname}\u3002`);
+      }
+      return ok();
+    }
+    /**
+     * Original human returns. Only the token issued for that seat works.
+     * Lobby drops delete the seat, so there is nothing to reclaim.
+     */
+    reclaim(newPlayerId, token) {
+      if (!token) return fail("token_unknown", "\u6435\u5514\u5230\u4F60\u539F\u672C\u5605\u5E2D\u3002");
+      const seat = this.seats.find((item) => item.reclaimToken === token);
+      if (!seat) return fail("token_unknown", "\u6435\u5514\u5230\u4F60\u539F\u672C\u5605\u5E2D\u3002");
+      if (!seat.isAi) return fail("not_taken", "\u5462\u5E2D\u672A\u4EA4\u4FFE AI\u3002");
+      if (this.seats.some((item) => item.playerId === newPlayerId)) return fail("already_in_room", "\u4F60\u5DF2\u7D93\u55BA\u4E00\u9593\u623F\u3002");
+      const oldId = seat.playerId;
+      this.rekey(oldId, newPlayerId);
+      seat.isAi = false;
+      seat.ready = false;
+      this.pushLog(`${seat.nickname} \u91CD\u65B0\u5165\u5EA7\uFF0CAI \u4EA4\u9084\u63A7\u5236\u3002`);
+      return ok();
+    }
+    submitNight(playerId, command) {
+      const seat = this.requireLiving(playerId);
+      if (!seat.ok) return seat;
+      if (this.phase !== "night") return fail("wrong_phase", "\u800C\u5BB6\u5514\u4FC2\u7184\u71C8\u884C\u52D5\u3002");
+      const allowed = this.actionsFor(seat.seat);
+      if (!allowed.some((item) => item.action === command.action)) {
+        return fail("not_your_skill", "\u4F60\u4ECA\u591C\u5187\u5462\u500B\u884C\u52D5\u3002");
+      }
+      if (command.action === "skip") {
+        this.nightActions.set(playerId, { action: "skip" });
+        return ok();
+      }
+      if (command.action === "seal" && seat.seat.sealUsed) {
+        return fail("seal_spent", "\u4F60\u672C\u5C40\u5C01\u53E3\u5DF2\u7D93\u7528\u904E\u3002");
+      }
+      const targetId = command.targetSeatId;
+      if (!targetId) return fail("illegal_target", "\u8ACB\u63C0\u4E00\u500B\u76EE\u6A19\u3002");
+      const target = this.seatById(targetId);
+      if (!target || !target.alive) return fail("illegal_target", "\u76EE\u6A19\u8981\u4ECD\u7136\u5728\u5834\u3002");
+      if (target.id === seat.seat.id && command.action !== "cover") {
+        return fail("illegal_target", "\u5462\u500B\u884C\u52D5\u5514\u53EF\u4EE5\u63C0\u81EA\u5DF1\u3002");
+      }
+      this.nightActions.set(playerId, { action: command.action, targetSeatId: target.id });
+      return ok();
+    }
+    /** 消音組夜訊。必須係模板原句，而且唔會寫入公開頻道。 */
+    submitSilence(playerId, text) {
+      const seat = this.requireLiving(playerId);
+      if (!seat.ok) return seat;
+      if (this.phase !== "night") return fail("wrong_phase", "\u591C\u8A0A\u53EA\u53EF\u4EE5\u55BA\u7184\u71C8\u9001\u3002");
+      if (this.factionOf(seat.seat) !== "silence") return fail("not_your_skill", "\u53EA\u6709\u6D88\u97F3\u7D44\u53EF\u4EE5\u5165\u591C\u8A0A\u3002");
+      const body = text.trim();
+      if (!SILENCE_TEMPLATES.includes(body)) {
+        return fail("template_only", "\u591C\u8A0A\u53EA\u53EF\u4EE5\u7528\u6A21\u677F\u77ED\u53E5\u3002");
+      }
+      const sent = this.silenceSent.get(playerId) ?? 0;
+      if (sent >= 2) return fail("limit", "\u4F60\u4ECA\u591C\u591C\u8A0A\u5DF2\u5920\u3002");
+      this.silenceSent.set(playerId, sent + 1);
+      this.silenceNotes.push({ seatId: seat.seat.id, nickname: seat.seat.nickname, text: body });
+      return ok();
+    }
+    setReady(playerId) {
+      const seat = this.seats.find((item) => item.playerId === playerId);
+      if (!seat) return fail("not_seated", "\u4F60\u672A\u5165\u5EA7\u3002");
+      if (!seat.alive) return fail("dead", "\u4F60\u5DF2\u96E2\u5834\u3002");
+      const actionable = ["boot", "day_talk", "draft", "vote", "night"];
+      if (!actionable.includes(this.phase)) return fail("wrong_phase", "\u5462\u500B\u968E\u6BB5\u5514\u4F7F\u6E96\u5099\u3002");
+      seat.ready = true;
+      return ok();
+    }
+    /** True when every living human has readied. An all-AI table does not auto-fire. */
+    everyoneReady() {
+      const humans = this.seats.filter((seat) => seat.alive && !seat.isAi);
+      if (humans.length === 0) return false;
+      return humans.every((seat) => seat.ready);
+    }
+    /**
+     * Apply timeout defaults for anyone who has not acted, then move one phase.
+     * Tie votes isolate nobody. Night with no order skips.
+     */
+    advance() {
+      switch (this.phase) {
+        case "lobby":
+          throw new Error("game has not started");
+        case "ended":
+          return;
+        case "boot":
+          this.beginDay(1);
+          return;
+        case "day_talk":
+          this.beginPhase("draft");
+          this.aiDraft();
+          return;
+        case "draft":
+          this.fillMissingDrafts();
+          this.publishDrafts();
+          this.beginPhase("vote");
+          this.syncAiVotes();
+          return;
+        case "vote":
+          this.fillMissingVotes();
+          this.syncAiVotes();
+          this.resolveVotes();
+          this.beginPhase("resolve");
+          return;
+        case "resolve":
+          this.nightNumber += 1;
+          this.silenceSent.clear();
+          this.beginPhase("night");
+          this.aiNight();
+          return;
+        case "night":
+          this.fillMissingNights();
+          this.resolveNight();
+          this.beginPhase("check");
+          this.evaluate();
+          return;
+        case "check":
+          if (this.winner) {
+            this.beginPhase("ended");
+            this.banner = this.winner.reason;
+            return;
+          }
+          this.beginDay(this.round + 1);
+          return;
+        default:
+          return;
+      }
+    }
+    publicView() {
+      return {
+        mode: "standard",
+        phase: this.phase,
+        phaseLabel: PHASE_LABEL[this.phase] ?? this.phase,
+        round: this.round,
+        night: this.nightNumber,
+        banner: this.banner,
+        composition: { ...RULES.composition },
+        seats: this.seats.map((seat) => ({
+          id: seat.id,
+          nickname: seat.nickname,
+          isAi: seat.isAi,
+          alive: seat.alive,
+          sealed: this.isSealed(seat),
+          lobbyReady: seat.lobbyReady
+        })),
+        log: this.log.map((entry) => ({ text: entry.text })),
+        pins: this.pins.map((pin) => ({ ...pin })),
+        disconnects: this.successfulDisconnects,
+        disconnectsToWin: RULES.silenceWin.successfulDisconnects,
+        winner: this.winner ? { ...this.winner } : null,
+        hostSeatId: this.seats[0]?.id ?? null,
+        locked: this.phase !== "lobby",
+        secondsLeft: this.secondsLeft(),
+        reveal: this.phase === "ended" ? this.revealSeats() : null
+      };
+    }
+    /** Packet for this player only. Other hidden roles are not included. */
+    privateView(playerId) {
+      const seat = this.seats.find((item) => item.playerId === playerId) ?? null;
+      const role = seat?.roleId ? ROLES[seat.roleId] : null;
+      return {
+        playerId,
+        seatId: seat?.id ?? null,
+        isHost: seat != null && seat.id === this.seats[0]?.id,
+        alive: seat?.alive ?? false,
+        canSpeak: seat != null && seat.alive && !this.isSealed(seat) && (this.phase === "day_talk" || this.phase === "draft"),
+        canVote: seat != null && seat.alive && this.phase === "vote",
+        ready: seat == null ? false : this.phase === "lobby" ? seat.lobbyReady : seat.ready,
+        role: role ? {
+          id: role.id,
+          name: role.name,
+          faction: role.faction,
+          factionLabel: FACTION_LABEL[role.faction],
+          skill: role.skill
+        } : null,
+        teammates: seat ? this.teammatesFor(seat) : [],
+        inbox: seat ? [...seat.inbox] : [],
+        nightActions: seat && this.phase === "night" && seat.alive ? this.actionsFor(seat) : [],
+        skillActions: seat ? this.skillActionsFor(seat) : [],
+        anonymousVote: seat != null && seat.alive && seat.roleId === "plant" && !seat.anonymousVoteUsed && this.phase === "vote",
+        fakeCharges: seat?.fakeCharges ?? 0,
+        muted: seat != null && this.isSealed(seat),
+        sealCard: seat != null && this.isSealed(seat) ? "\u5C01\u53E3\u5361\uFF1A\u4F60\u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\u3002\u5514\u53EF\u4EE5\u767C\u8A00\u3001\u4EA4\u8349\u7A3F\uFF0C\u6216\u8005\u7528\u767D\u5929\u6280\u80FD\u3002" : null,
+        reclaimToken: seat?.reclaimToken ?? null,
+        votedSeatId: seat ? this.votes.get(playerId)?.target ?? null : null,
+        draft: seat ? this.drafts.get(playerId) ?? null : null,
+        marks: seat ? [...seat.silenceMarks] : [],
+        silenceChannel: seat && this.factionOf(seat) === "silence" ? this.silenceNotes.map((note) => ({ ...note })) : [],
+        tips: seat ? this.tipsFor(seat) : [],
+        secondsLeft: this.secondsLeft(),
+        remnants: seat?.roleId === "echo" ? seat.remnants.map((item) => ({ ...item })) : []
+      };
+    }
+    makeSeat(playerId, nickname, isAi) {
+      return {
+        id: `s${this.seats.length + 1}`,
+        playerId,
+        nickname,
+        isAi,
+        alive: true,
+        roleId: null,
+        ready: false,
+        silenceMarks: [],
+        sealUsed: false,
+        sealedOnRound: null,
+        sweepFog: 0,
+        coverReadyNight: 1,
+        inbox: [],
+        remnants: [],
+        usedSkillThisRound: false,
+        usedSkillLastRound: false,
+        pinnedThisRound: false,
+        linkedThisRound: false,
+        fakeCharges: 0,
+        anonymousVoteUsed: false,
+        reclaimToken: null,
+        lobbyReady: false
+      };
+    }
+    nextToken() {
+      this.tokenSeq += 1;
+      const mix = Math.floor(this.rng() * 4294967296).toString(16).padStart(8, "0");
+      return `qz${this.tokenSeq.toString(16)}${mix}`;
+    }
+    rekey(oldId, newId) {
+      const seat = this.seats.find((item) => item.playerId === oldId);
+      if (!seat) return;
+      seat.playerId = newId;
+      this.moveKey(this.votes, oldId, newId);
+      this.moveKey(this.drafts, oldId, newId);
+      this.moveKey(this.nightActions, oldId, newId);
+      this.moveKey(this.chatCount, oldId, newId);
+    }
+    moveKey(map, oldId, newId) {
+      if (!map.has(oldId)) return;
+      map.set(newId, map.get(oldId));
+      map.delete(oldId);
+    }
+    assertDeal(roles) {
+      if (roles.length !== RULES.seatCount) throw new Error("deal length");
+      const counts = { lighthouse: 0, silence: 0, grey: 0 };
+      for (const roleId of roles) {
+        const role = ROLES[roleId];
+        if (!role) throw new Error(`unknown role ${roleId}`);
+        counts[role.faction] += 1;
+      }
+      if (counts.lighthouse !== RULES.composition.lighthouse || counts.silence !== RULES.composition.silence || counts.grey !== RULES.composition.grey) {
+        throw new Error("deal composition");
+      }
+    }
+    beginDay(round) {
+      for (const seat of this.seats) {
+        seat.usedSkillLastRound = seat.usedSkillThisRound;
+        seat.usedSkillThisRound = false;
+        seat.pinnedThisRound = false;
+        seat.linkedThisRound = false;
+      }
+      this.round = round;
+      this.beginPhase("day_talk");
+      this.banner = `\u7B2C ${round} \u8F2A\u71C8\u4EAE\u3002\u7528\u77ED\u53E5\u5C31\u5F97\uFF0C\u6A21\u677F\u90FD\u53EF\u4EE5\u3002`;
+      const sealed = this.seats.filter((seat) => seat.alive && this.isSealed(seat));
+      for (const seat of sealed) {
+        this.pushLog(`\u5C01\u53E3\u751F\u6548\uFF1A${seat.nickname} \u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\uFF0C\u5514\u53EF\u4EE5\u767C\u8A00\u3002`);
+      }
+      this.aiTalk();
+      this.aiDaySkills();
+    }
+    beginPhase(phase) {
+      this.phase = phase;
+      this.chatCount.clear();
+      for (const seat of this.seats) seat.ready = false;
+      this.markAiReady();
+    }
+    markAiReady() {
+      if (!this.autoAi) return;
+      for (const seat of this.seats) {
+        if (seat.isAi && seat.alive) seat.ready = true;
+      }
+    }
+    aiTalk() {
+      if (!this.autoAi) return;
+      for (const seat of this.sampleAi(3)) {
+        const phrase = TALK_PHRASES[(this.seatIndex(seat) + this.round) % TALK_PHRASES.length];
+        this.submitChat(seat.playerId, phrase);
+      }
+    }
+    aiDraft() {
+      if (!this.autoAi) return;
+      for (const seat of this.sampleAi(3)) {
+        const phrase = DRAFT_PHRASES[(this.seatIndex(seat) + this.round) % DRAFT_PHRASES.length];
+        this.submitDraft(seat.playerId, phrase);
+      }
+    }
+    /** A few AI lines per phase so the public log stays readable. */
+    sampleAi(limit) {
+      const pool = this.seats.filter((seat) => seat.isAi && seat.alive && !this.isSealed(seat));
+      const rotated = pool.filter((seat) => (this.seatIndex(seat) + this.round) % 3 === 0);
+      return (rotated.length > 0 ? rotated : pool).slice(0, limit);
+    }
+    aiDaySkills() {
+      if (!this.autoAi) return;
+      for (const seat of this.seats) {
+        if (!seat.isAi || !seat.alive || !seat.roleId || this.isSealed(seat)) continue;
+        if (seat.roleId === "tip") this.submitPin(seat.playerId, "\u6211\u91D8\u4F4E\u4E00\u53E5\uFF1A\u672A\u898B\u8DB3\u5920\u5931\u806F\u75D5\u8DE1\u3002");
+        if (seat.roleId === "link") {
+          const target = this.seats.find((item) => item.alive && item.id !== seat.id);
+          if (target) this.submitLink(seat.playerId, target.id);
+        }
+        if (seat.roleId === "decoy" && seat.fakeCharges > 0) {
+          const pin = this.pins.find((item) => !item.unverified);
+          if (pin) this.submitFake(seat.playerId, { mode: "flag", pinId: pin.id });
+          else this.submitFake(seat.playerId, { mode: "plant", text: "\u6709\u4EBA\u8A71\u5462\u5E2D\u5514\u4E7E\u6DE8\u3002" });
+        }
+      }
+    }
+    catchUpAi(seat) {
+      if (this.phase === "day_talk") {
+        if (!this.isSealed(seat) && !(this.chatCount.get(seat.playerId) ?? 0)) {
+          const phrase = TALK_PHRASES[this.seatIndex(seat) % TALK_PHRASES.length];
+          this.submitChat(seat.playerId, phrase);
+        }
+        if (seat.roleId === "tip") this.submitPin(seat.playerId, "\u63A5\u7BA1\u5F8C\u91D8\u4F4E\uFF1A\u6211\u6CBF\u7528\u539F\u5E2D\u89C0\u5BDF\u3002");
+        if (seat.roleId === "link") {
+          const target = this.seats.find((item) => item.alive && item.id !== seat.id);
+          if (target) this.submitLink(seat.playerId, target.id);
+        }
+        if (seat.roleId === "decoy" && seat.fakeCharges > 0 && !seat.usedSkillThisRound) {
+          this.submitFake(seat.playerId, { mode: "plant", text: "\u63A5\u7BA1\u5E2D\u653E\u4F4E\u4E00\u53E5\u4F86\u6E90\u672A\u6838\u3002" });
+        }
+      } else if (this.phase === "draft" && !this.drafts.has(seat.playerId) && !this.isSealed(seat)) {
+        this.submitDraft(seat.playerId, DRAFT_PHRASES[this.seatIndex(seat) % DRAFT_PHRASES.length] ?? "");
+      } else if (this.phase === "vote" && !this.votes.has(seat.playerId)) {
+        this.syncAiVotes();
+      } else if (this.phase === "night") {
+        if (!this.nightActions.has(seat.playerId)) {
+          const command = this.scriptedAiNight(seat);
+          if (command) this.submitNight(seat.playerId, command);
+        }
+        this.postAiSilence(seat);
+      }
+    }
+    aiNight() {
+      if (!this.autoAi) return;
+      for (const seat of this.seats) {
+        if (!seat.isAi || !seat.alive || !seat.roleId) continue;
+        const command = this.scriptedAiNight(seat);
+        if (command) this.submitNight(seat.playerId, command);
+        this.postAiSilence(seat);
+      }
+    }
+    postAiSilence(seat) {
+      if (!this.autoAi || this.phase !== "night") return;
+      if (!seat.isAi || !seat.alive || this.factionOf(seat) !== "silence") return;
+      const line = SILENCE_TEMPLATES[this.seatIndex(seat) % SILENCE_TEMPLATES.length];
+      this.submitSilence(seat.playerId, line);
+    }
+    scriptedAiNight(seat) {
+      const role = seat.roleId;
+      if (role === "silencer") {
+        const target = this.seats.find((item) => item.alive && item.id !== seat.id && this.factionOf(item) !== "silence");
+        return target ? { action: "disconnect", targetSeatId: target.id } : { action: "skip" };
+      }
+      if (role === "cover") {
+        const target = this.seats.find((item) => item.alive && item.id !== seat.id);
+        return target ? { action: "cover", targetSeatId: target.id } : { action: "skip" };
+      }
+      if (role === "sweep") {
+        const target = this.seats.find((item) => item.alive && item.id !== seat.id);
+        return target ? { action: "sweep", targetSeatId: target.id } : { action: "skip" };
+      }
+      if (role === "warrant") {
+        const target = this.seats.find((item) => item.alive && item.id !== seat.id && !seat.silenceMarks.includes(item.id));
+        return target ? { action: "mark", targetSeatId: target.id } : { action: "skip" };
+      }
+      return null;
+    }
+    /** AI copy the unique human leader. A split human vote stays a tie. */
+    syncAiVotes() {
+      if (!this.autoAi || this.phase !== "vote") return;
+      const humanTargets = [];
+      for (const seat of this.seats) {
+        if (seat.isAi || !seat.alive) continue;
+        if (!this.votes.has(seat.playerId)) continue;
+        humanTargets.push(this.votes.get(seat.playerId)?.target ?? null);
+      }
+      const leader = uniqueLeader(humanTargets);
+      for (const seat of this.seats) {
+        if (!seat.isAi || !seat.alive) continue;
+        const target = leader == null || leader === seat.id ? null : leader;
+        this.votes.set(seat.playerId, {
+          target,
+          anonymous: seat.roleId === "plant" && !seat.anonymousVoteUsed && target != null
+        });
+      }
+    }
+    fillMissingDrafts() {
+      for (const seat of this.seats) {
+        if (!seat.alive || this.isSealed(seat)) continue;
+        if (!this.drafts.has(seat.playerId)) this.drafts.set(seat.playerId, "");
+      }
+    }
+    publishDrafts() {
+      for (const seat of this.seats) {
+        if (!seat.alive || this.isSealed(seat)) continue;
+        const text = this.drafts.get(seat.playerId) ?? "";
+        if (!text) continue;
+        this.pushLog(`\u8349\u7A3F\uFF5C${seat.nickname}\uFF1A${text}`);
+      }
+      this.drafts.clear();
+    }
+    fillMissingVotes() {
+      for (const seat of this.seats) {
+        if (!seat.alive) continue;
+        if (!this.votes.has(seat.playerId)) this.votes.set(seat.playerId, { target: null, anonymous: false });
+      }
+    }
+    resolveVotes() {
+      const ballots = [];
+      const attributed = [];
+      for (const seat of this.seats) {
+        if (!seat.alive) continue;
+        const ballot = this.votes.get(seat.playerId) ?? { target: null, anonymous: false };
+        ballots.push(ballot.target);
+        let name = seat.nickname;
+        if (ballot.anonymous && seat.roleId === "plant" && !seat.anonymousVoteUsed) {
+          seat.anonymousVoteUsed = true;
+          this.markSkill(seat);
+          name = "\u533F\u540D";
+        }
+        attributed.push(`${name} \u2192 ${ballot.target ?? "\u68C4\u6B0A"}`);
+      }
+      if (attributed.length > 0) this.pushLog(`\u7968\u7C3F\uFF1A${attributed.join("\u3001")}`);
+      const leader = uniqueLeader(ballots);
+      this.votes.clear();
+      if (!leader) {
+        this.banner = "\u6D41\u5C40\uFF0C\u7121\u4EBA\u88AB\u9694\u96E2\u3002";
+        this.pushLog("\u6295\u7968\u6D41\u5C40\uFF0C\u7121\u4EBA\u88AB\u9694\u96E2\u3002");
+        return;
+      }
+      const target = this.seatById(leader);
+      if (!target) return;
+      target.alive = false;
+      this.banner = `${target.nickname} \u88AB\u9694\u96E2\u79FB\u51FA\u3002\u9663\u71DF\u672A\u516C\u958B\u3002`;
+      this.pushLog(`${target.nickname} \u88AB\u9694\u96E2\u79FB\u51FA\u3002`);
+      this.deliverEcho(target);
+    }
+    deliverEcho(isolated) {
+      const echo = this.seats.find((seat) => seat.alive && seat.roleId === "echo");
+      if (!echo || !isolated.roleId) return;
+      const faction = ROLES[isolated.roleId].faction;
+      const text = `\u56DE\u6CE2\u6B98\u7247\uFF1A${isolated.nickname} \u5C6C\u65BC${FACTION_LABEL[faction]}\u3002\u516C\u958B\u983B\u9053\u5514\u6703\u62AB\u9732\u9663\u71DF\u3002`;
+      echo.inbox.push(text);
+      echo.remnants.push({ nickname: isolated.nickname, factionLabel: FACTION_LABEL[faction], text });
+    }
+    fillMissingNights() {
+      for (const seat of this.seats) {
+        if (!seat.alive) continue;
+        if (this.actionsFor(seat).length === 0) continue;
+        if (!this.nightActions.has(seat.playerId)) {
+          this.nightActions.set(seat.playerId, { action: "skip" });
+        }
+      }
+    }
+    resolveNight() {
+      const shields = /* @__PURE__ */ new Set();
+      for (const seat of this.seats) {
+        if (!seat.alive || seat.roleId !== "cover") continue;
+        const command = this.nightActions.get(seat.playerId);
+        if (!command || command.action !== "cover" || !command.targetSeatId) continue;
+        this.markSkill(seat);
+        if (this.nightNumber < seat.coverReadyNight) {
+          seat.inbox.push("\u63A9\u8B77\u51B7\u537B\u4E2D\uFF0C\u4ECA\u6B21\u5514\u6703\u6210\u529F\u3002");
+          continue;
+        }
+        const target = this.seatById(command.targetSeatId);
+        if (!target || !target.alive) continue;
+        shields.add(target.id);
+        seat.coverReadyNight = this.nightNumber + RULES.cover.blockedFollowingTurns + 1;
+        seat.inbox.push(`\u63A9\u8B77\u6210\u529F\uFF1A${target.nickname} \u4ECA\u591C\u514D\u75AB\u5931\u806F\u3002\u4E0B\u4E00\u591C\u5514\u53EF\u4EE5\u518D\u6210\u529F\u3002`);
+      }
+      let disconnected = false;
+      for (const seat of this.seats) {
+        if (!seat.alive || seat.roleId !== "silencer") continue;
+        const command = this.nightActions.get(seat.playerId);
+        if (!command || command.action !== "disconnect" || !command.targetSeatId) continue;
+        this.markSkill(seat);
+        const target = this.seatById(command.targetSeatId);
+        if (!target || !target.alive) continue;
+        if (shields.has(target.id)) {
+          seat.inbox.push(`\u5931\u806F\u672A\u751F\u6548\uFF1A${target.nickname} \u53EF\u80FD\u88AB\u63A9\u8B77\u3002`);
+          continue;
+        }
+        target.alive = false;
+        this.successfulDisconnects += 1;
+        disconnected = true;
+        this.pushLog(`${target.nickname} \u5931\u806F\uFF0C\u79FB\u51FA\u672C\u5C40\u3002`);
+        seat.inbox.push(`\u5931\u806F\u6210\u529F\uFF1A${target.nickname} \u5DF2\u79FB\u51FA\u3002`);
+      }
+      if (!disconnected) this.pushLog("\u7184\u71C8\u7D50\u675F\uFF0C\u4ECA\u591C\u7121\u4EBA\u5931\u806F\u3002");
+      for (const seat of this.seats) {
+        if (!seat.alive || seat.roleId !== "sweep") continue;
+        const command = this.nightActions.get(seat.playerId);
+        if (!command || command.action !== "sweep" || !command.targetSeatId) continue;
+        this.markSkill(seat);
+        const target = this.seatById(command.targetSeatId);
+        if (!target || !target.roleId) continue;
+        const silence = ROLES[target.roleId].faction === "silence";
+        let clean = !silence;
+        if (silence && target.sweepFog > 0) {
+          target.sweepFog -= 1;
+          clean = true;
+        }
+        seat.inbox.push(clean ? `\u6383\u983B\uFF1A${target.nickname} \u8A0A\u865F\u4E7E\u6DE8\u3002` : `\u6383\u983B\uFF1A${target.nickname} \u6709\u6D88\u97F3\u75D5\u8DE1\u3002`);
+      }
+      for (const seat of this.seats) {
+        if (!seat.alive || seat.roleId !== "warrant") continue;
+        const command = this.nightActions.get(seat.playerId);
+        if (!command || command.action === "skip") continue;
+        this.markSkill(seat);
+        if (command.action === "mark" && command.targetSeatId) {
+          if (!seat.silenceMarks.includes(command.targetSeatId)) seat.silenceMarks.push(command.targetSeatId);
+          const target = this.seatById(command.targetSeatId);
+          seat.inbox.push(`\u5DF2\u6A19\u8A18 ${target?.nickname ?? command.targetSeatId}\u3002\u6A19\u8A18\u53EA\u5F97\u4F60\u77E5\u3002`);
+        }
+        if (command.action === "seal" && command.targetSeatId && !seat.sealUsed) {
+          const target = this.seatById(command.targetSeatId);
+          if (!target || !target.alive) continue;
+          seat.sealUsed = true;
+          target.sealedOnRound = this.round + 1;
+          seat.inbox.push(`\u4F60\u5C01\u5497 ${target.nickname}\u3002\u4E0B\u4E00\u8F2A\u71C8\u4EAE\u4F62\u53EA\u53EF\u4EE5\u6295\u7968\u3002`);
+          this.pushLog(`\u5C01\u53E3\u5361\uFF1A${target.nickname} \u4E0B\u4E00\u8F2A\u53EA\u53EF\u4EE5\u6295\u7968\uFF0C\u5514\u53EF\u4EE5\u767C\u8A00\u3002`);
+        }
+      }
+      this.nightActions.clear();
+      this.banner = `\u7B2C ${this.nightNumber} \u591C\u7D50\u675F\u3002\u5931\u806F\u9032\u5EA6 ${this.successfulDisconnects}\uFF0F${RULES.silenceWin.successfulDisconnects}\u3002`;
+    }
+    /**
+     * Grey first, even if silence is still alive.
+     * Then silence on 3 successful disconnects (or no lighthouse left).
+     * Then lighthouse when no silence remains.
+     */
+    evaluate() {
+      const warrant = this.seats.find((seat) => seat.alive && seat.roleId === "warrant");
+      if (warrant && this.correctSilenceMarks(warrant) >= RULES.greyWin.minCorrectSilenceMarks) {
+        this.winner = {
+          faction: "grey",
+          factionLabel: FACTION_LABEL.grey,
+          reason: "\u7070\u983B\u7368\u8D0F\uFF1A\u5B64\u8B49\u5BA2\u4ECD\u5728\u5834\uFF0C\u6B63\u78BA\u6D88\u97F3\u6A19\u8A18\u9054 2\u3002",
+          kind: "grey_marks"
+        };
+        this.banner = this.winner.reason;
+        this.pushLog(this.winner.reason);
+        return;
+      }
+      const silenceAlive = this.seats.some((seat) => seat.alive && this.factionOf(seat) === "silence");
+      const lighthouseAlive = this.seats.some((seat) => seat.alive && this.factionOf(seat) === "lighthouse");
+      if (this.successfulDisconnects >= RULES.silenceWin.successfulDisconnects || !lighthouseAlive) {
+        this.winner = {
+          faction: "silence",
+          factionLabel: FACTION_LABEL.silence,
+          reason: this.successfulDisconnects >= RULES.silenceWin.successfulDisconnects ? "\u6D88\u97F3\u7D44\u9054\u6A19\uFF1A\u6210\u529F\u5931\u806F 3 \u6B21\u3002" : "\u6D88\u97F3\u7D44\u52DD\uFF1A\u71C8\u5854\u7DB2\u5DF2\u7121\u6CD5\u6295\u7968\u3002",
+          kind: "silence_disconnects"
+        };
+        this.banner = this.winner.reason;
+        this.pushLog(this.winner.reason);
+        return;
+      }
+      if (!silenceAlive) {
+        this.winner = {
+          faction: "lighthouse",
+          factionLabel: FACTION_LABEL.lighthouse,
+          reason: "\u71C8\u5854\u7DB2\u89E3\u5C01\uFF1A\u6D88\u97F3\u7D44\u5DF2\u5168\u90E8\u96E2\u5834\u3002",
+          kind: "lighthouse_clear"
+        };
+        this.banner = this.winner.reason;
+        this.pushLog(this.winner.reason);
+        return;
+      }
+      this.banner = "\u672A\u5206\u52DD\u8CA0\u3002\u7070\u983B\u672A\u9054\u6A19\uFF0C\u5931\u806F\u4EA6\u672A\u5920\u6578\u3002";
+      this.pushLog("\u52DD\u8CA0\u6AA2\u5B9A\uFF1A\u672A\u7D42\u5C40\uFF0C\u9032\u5165\u4E0B\u4E00\u8F2A\u71C8\u4EAE\u3002");
+    }
+    correctSilenceMarks(seat) {
+      let count = 0;
+      for (const id of seat.silenceMarks) {
+        const target = this.seatById(id);
+        if (target && this.factionOf(target) === "silence") count += 1;
+      }
+      return count;
+    }
+    secondsLeft() {
+      if (this.deadlineAt == null) return null;
+      return Math.max(0, Math.ceil((this.deadlineAt - Date.now()) / 1e3));
+    }
+    revealSeats() {
+      return this.seats.map((seat) => {
+        const role = seat.roleId ? ROLES[seat.roleId] : null;
+        return {
+          seatId: seat.id,
+          nickname: seat.nickname,
+          alive: seat.alive,
+          roleId: role?.id ?? "civilian",
+          roleName: role?.name ?? "",
+          faction: role?.faction ?? "lighthouse",
+          factionLabel: role ? FACTION_LABEL[role.faction] : ""
+        };
+      });
+    }
+    tipsFor(seat) {
+      const tips = [];
+      if (this.phase === "day_talk") tips.push({ ...PHASE_TIPS.day_talk });
+      if (this.phase === "vote") tips.push({ ...PHASE_TIPS.vote });
+      if (this.phase === "night") tips.push({ ...PHASE_TIPS.night });
+      if (seat.roleId === "warrant" && (this.phase === "day_talk" || this.phase === "draft" || this.phase === "night")) {
+        tips.push({ ...PHASE_TIPS.grey_marks });
+      }
+      return tips;
+    }
+    markSkill(seat) {
+      seat.usedSkillThisRound = true;
+    }
+    skillActionsFor(seat) {
+      if (!seat.alive || !seat.roleId) return [];
+      const dayMute = this.isSealed(seat) && this.phase !== "night";
+      if (dayMute) return [];
+      const actions = [];
+      const markWindow = this.phase === "day_talk" || this.phase === "draft" || this.phase === "night";
+      if (markWindow && seat.roleId === "warrant") {
+        actions.push({ action: "mark", label: "\u6A19\u8A18\u6D88\u97F3\u5ACC\u7591", needsTarget: true, needsText: false });
+      }
+      if (this.phase === "day_talk" && seat.roleId === "tip" && !seat.pinnedThisRound) {
+        actions.push({ action: "pin", label: "\u91D8\u9078\u6B98\u8A0A", needsTarget: false, needsText: true });
+      }
+      if (this.phase === "day_talk" && seat.roleId === "link" && !seat.linkedThisRound) {
+        actions.push({ action: "link", label: "\u6838\u5C0D\u901A\u806F", needsTarget: true, needsText: false });
+      }
+      const fakeWindow = this.phase === "day_talk" || this.phase === "night";
+      if (fakeWindow && seat.roleId === "decoy" && seat.fakeCharges > 0) {
+        actions.push({ action: "fake_plant", label: "\u653E\u4F86\u6E90\u672A\u6838", needsTarget: false, needsText: true });
+        if (this.pins.some((pin) => !pin.unverified)) {
+          actions.push({ action: "fake_flag", label: "\u6A19\u505A\u5F85\u6838\u5BE6", needsTarget: true, needsText: false });
+        }
+      }
+      return actions;
+    }
+    actionsFor(seat) {
+      const role = seat.roleId;
+      const names = [];
+      if (role === "silencer") names.push("disconnect", "skip");
+      else if (role === "cover") names.push("cover", "skip");
+      else if (role === "sweep") names.push("sweep", "skip");
+      else if (role === "warrant") {
+        names.push("mark");
+        if (!seat.sealUsed) names.push("seal");
+        names.push("skip");
+      }
+      return names.map((action) => ({ action, ...NIGHT_LABEL[action] }));
+    }
+    teammatesFor(seat) {
+      if (this.factionOf(seat) !== "silence") return [];
+      return this.seats.filter((other) => other.playerId !== seat.playerId && this.factionOf(other) === "silence" && other.roleId).map((other) => ({
+        seatId: other.id,
+        nickname: other.nickname,
+        roleName: ROLES[other.roleId].name
+      }));
+    }
+    factionOf(seat) {
+      if (!seat.roleId) return null;
+      return ROLES[seat.roleId].faction;
+    }
+    isSealed(seat) {
+      return seat.sealedOnRound != null && seat.sealedOnRound === this.round;
+    }
+    requireLiving(playerId) {
+      const seat = this.seats.find((item) => item.playerId === playerId);
+      if (!seat) return fail("not_seated", "\u4F60\u672A\u5165\u5EA7\u3002");
+      if (!seat.alive) return fail("dead", "\u4F60\u5DF2\u96E2\u5834\u3002");
+      if (!seat.roleId && this.phase !== "lobby") return fail("not_ready", "\u8EAB\u5206\u672A\u6D3E\u767C\u3002");
+      return { ok: true, seat };
+    }
+    seatById(id) {
+      return this.seats.find((seat) => seat.id === id);
+    }
+    seatIndex(seat) {
+      return this.seats.indexOf(seat);
+    }
+    pushLog(text) {
+      this.log.push({ text });
+      if (this.log.length > 300) this.log.shift();
+    }
+  };
+  function cleanName(nickname) {
+    const name = nickname.trim().slice(0, 12);
+    return name;
+  }
+
+  // src/hub.ts
+  var EARLY = /* @__PURE__ */ new Set(["boot", "day_talk", "draft", "vote", "night"]);
+  var NIGHT_ACTIONS = /* @__PURE__ */ new Set(["disconnect", "cover", "sweep", "mark", "seal", "skip"]);
+  var ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  var RoomHub = class {
+    rooms = /* @__PURE__ */ new Map();
+    playerRoom = /* @__PURE__ */ new Map();
+    sinks = /* @__PURE__ */ new Map();
+    timers;
+    autoAi;
+    rng;
+    phaseMs;
+    fillAiOnCreate;
+    constructor(opts = {}) {
+      this.timers = opts.timers ?? false;
+      this.autoAi = opts.autoAi ?? true;
+      this.rng = opts.rng ?? Math.random;
+      this.phaseMs = opts.phaseMs ?? defaultPhaseMs;
+      this.fillAiOnCreate = opts.fillAiOnCreate ?? false;
+    }
+    /** Drop every room and pending phase timer. Used when a trial tab closes. */
+    shutdown() {
+      for (const room of this.rooms.values()) this.clearTimer(room);
+      this.rooms.clear();
+      this.playerRoom.clear();
+      this.sinks.clear();
+    }
+    bind(playerId, sink) {
+      this.sinks.set(playerId, sink);
+    }
+    unbind(playerId) {
+      this.sinks.delete(playerId);
+    }
+    /**
+     * Socket dropped. Lobby frees the seat. An in-progress game hands that seat to AI
+     * with the same role and private state, and the badge stays on.
+     */
+    disconnect(playerId) {
+      this.unbind(playerId);
+      const room = this.roomOf(playerId);
+      this.playerRoom.delete(playerId);
+      if (!room) return;
+      if (room.engine.getPhase() === "lobby") {
+        room.engine.removeLobbyPlayer(playerId);
+        if (room.engine.publicView().seats.length === 0) {
+          this.clearTimer(room);
+          this.rooms.delete(room.code);
+          return;
+        }
+      } else {
+        room.engine.takeoverAsAi(playerId);
+        this.maybeEarly(room);
+      }
+      this.broadcast(room);
+    }
+    snapshot(playerId) {
+      const room = this.roomOf(playerId);
+      if (!room) return null;
+      return this.dress(room, playerId);
+    }
+    handle(playerId, raw) {
+      if (!raw || typeof raw !== "object") {
+        this.fail(playerId, "bad_message", "\u8A0A\u606F\u683C\u5F0F\u5514\u6B63\u78BA\u3002");
+        return;
+      }
+      const msg = raw;
+      switch (msg.type) {
+        case "create_room":
+          this.create(playerId, String(msg.nickname ?? ""));
+          return;
+        case "join_room":
+          this.join(playerId, String(msg.code ?? ""), String(msg.nickname ?? ""));
+          return;
+        case "start_game":
+          this.start(playerId);
+          return;
+        case "chat":
+          this.act(playerId, (engine) => engine.submitChat(playerId, String(msg.text ?? "")));
+          return;
+        case "draft":
+          this.act(playerId, (engine) => engine.submitDraft(playerId, String(msg.text ?? "")));
+          return;
+        case "vote":
+          this.act(
+            playerId,
+            (engine) => engine.submitVote(
+              playerId,
+              msg.targetSeatId == null || msg.targetSeatId === "" ? null : String(msg.targetSeatId),
+              msg.anonymous === true
+            )
+          );
+          return;
+        case "skill":
+          this.act(
+            playerId,
+            (engine) => this.skill(engine, playerId, {
+              action: String(msg.action ?? ""),
+              text: msg.text == null ? "" : String(msg.text),
+              targetId: msg.targetId == null ? "" : String(msg.targetId),
+              marked: msg.marked !== false && msg.action !== "unmark"
+            })
+          );
+          return;
+        case "reclaim":
+          this.reclaim(playerId, String(msg.token ?? ""));
+          return;
+        case "night_action":
+          this.act(playerId, (engine) => {
+            const action = String(msg.action ?? "");
+            if (!NIGHT_ACTIONS.has(action)) return { ok: false, code: "bad_message", message: "\u672A\u77E5\u5605\u7184\u71C8\u884C\u52D5\u3002" };
+            return engine.submitNight(playerId, {
+              action,
+              targetSeatId: msg.targetSeatId ? String(msg.targetSeatId) : void 0
+            });
+          });
+          return;
+        case "silence":
+          this.act(playerId, (engine) => engine.submitSilence(playerId, String(msg.text ?? "")));
+          return;
+        case "ready":
+          if (this.roomOf(playerId)?.engine.getPhase() === "lobby") {
+            this.act(playerId, (engine) => engine.setLobbyReady(playerId, msg.ready !== false));
+            return;
+          }
+          this.act(playerId, (engine) => engine.setReady(playerId), true);
+          return;
+        default:
+          this.fail(playerId, "bad_message", "\u672A\u77E5\u6307\u4EE4\u3002");
+      }
+    }
+    create(playerId, nickname) {
+      if (this.playerRoom.has(playerId)) {
+        this.fail(playerId, "already_in_room", "\u4F60\u5DF2\u7D93\u55BA\u4E00\u9593\u623F\u3002");
+        return;
+      }
+      const engine = new GameEngine({ rng: this.rng, autoAi: this.autoAi });
+      const joined = engine.addPlayer(playerId, nickname);
+      if (!joined.ok) {
+        this.fail(playerId, joined.code, joined.message);
+        return;
+      }
+      if (this.fillAiOnCreate) engine.fillWithAi();
+      const code = this.freshCode();
+      const room = { code, engine };
+      this.rooms.set(code, room);
+      this.playerRoom.set(playerId, code);
+      this.broadcast(room);
+    }
+    join(playerId, code, nickname) {
+      if (this.playerRoom.has(playerId)) {
+        this.fail(playerId, "already_in_room", "\u4F60\u5DF2\u7D93\u55BA\u4E00\u9593\u623F\u3002");
+        return;
+      }
+      const room = this.rooms.get(code.trim().toUpperCase());
+      if (!room) {
+        this.fail(playerId, "room_not_found", "\u6435\u5514\u5230\u5462\u500B\u623F\u9593\u4EE3\u78BC\u3002");
+        return;
+      }
+      const joined = room.engine.addPlayer(playerId, nickname);
+      if (!joined.ok) {
+        this.fail(playerId, joined.code, joined.message);
+        return;
+      }
+      this.playerRoom.set(playerId, room.code);
+      this.broadcast(room);
+    }
+    start(playerId) {
+      const room = this.roomOf(playerId);
+      if (!room) {
+        this.fail(playerId, "not_in_room", "\u4F60\u672A\u5165\u623F\u3002");
+        return;
+      }
+      if (!room.engine.privateView(playerId).isHost) {
+        this.fail(playerId, "not_host", "\u53EA\u6709\u623F\u4E3B\u53EF\u4EE5\u958B\u59CB\u3002");
+        return;
+      }
+      const started = room.engine.start(void 0, { enforceLobbyReady: true });
+      if (!started.ok) {
+        this.fail(playerId, started.code, started.message);
+        return;
+      }
+      this.arm(room);
+      this.broadcast(room);
+    }
+    skill(engine, playerId, msg) {
+      if (msg.action === "pin") return engine.submitPin(playerId, msg.text);
+      if (msg.action === "link") return engine.submitLink(playerId, msg.targetId);
+      if (msg.action === "fake_flag") return engine.submitFake(playerId, { mode: "flag", pinId: msg.targetId });
+      if (msg.action === "fake_plant") return engine.submitFake(playerId, { mode: "plant", text: msg.text });
+      if (msg.action === "mark" || msg.action === "unmark") {
+        return engine.submitSuspect(playerId, msg.targetId, msg.action === "mark" && msg.marked);
+      }
+      return { ok: false, code: "bad_message", message: "\u672A\u77E5\u5605\u6280\u80FD\u3002" };
+    }
+    reclaim(playerId, token) {
+      if (this.playerRoom.has(playerId)) {
+        this.fail(playerId, "already_in_room", "\u4F60\u5DF2\u7D93\u55BA\u4E00\u9593\u623F\u3002");
+        return;
+      }
+      for (const room of this.rooms.values()) {
+        const result = room.engine.reclaim(playerId, token);
+        if (result.ok) {
+          this.playerRoom.set(playerId, room.code);
+          this.broadcast(room);
+          return;
+        }
+        if (result.code !== "token_unknown") {
+          this.fail(playerId, result.code, result.message);
+          return;
+        }
+      }
+      this.fail(playerId, "token_unknown", "\u6435\u5514\u5230\u4F60\u539F\u672C\u5605\u5E2D\u3002");
+    }
+    act(playerId, run, early = false) {
+      const room = this.roomOf(playerId);
+      if (!room) {
+        this.fail(playerId, "not_in_room", "\u4F60\u672A\u5165\u623F\u3002");
+        return;
+      }
+      const result = run(room.engine);
+      if (!result.ok) {
+        this.fail(playerId, result.code, result.message);
+        return;
+      }
+      if (early) this.maybeEarly(room);
+      this.broadcast(room);
+    }
+    maybeEarly(room) {
+      const phase = room.engine.getPhase();
+      if (!EARLY.has(phase) || !room.engine.everyoneReady()) return;
+      this.clearTimer(room);
+      room.engine.advance();
+      this.arm(room);
+    }
+    arm(room) {
+      this.clearTimer(room);
+      if (!this.timers) {
+        room.engine.setPhaseDeadline(null);
+        return;
+      }
+      const ms = this.phaseMs(room.engine.getPhase());
+      if (ms == null) {
+        room.engine.setPhaseDeadline(null);
+        return;
+      }
+      room.engine.setPhaseDeadline(Date.now() + ms);
+      room.timer = setTimeout(() => {
+        room.timer = void 0;
+        if (room.engine.getPhase() === "ended") return;
+        room.engine.advance();
+        this.arm(room);
+        this.broadcast(room);
+      }, ms);
+    }
+    clearTimer(room) {
+      if (room.timer) clearTimeout(room.timer);
+      room.timer = void 0;
+    }
+    dress(room, playerId) {
+      return {
+        type: "state",
+        public: { ...room.engine.publicView(), code: room.code },
+        private: room.engine.privateView(playerId)
+      };
+    }
+    broadcast(room) {
+      for (const [playerId, code] of this.playerRoom) {
+        if (code === room.code) this.emit(playerId, this.dress(room, playerId));
+      }
+    }
+    emit(playerId, msg) {
+      this.sinks.get(playerId)?.(msg);
+    }
+    fail(playerId, code, message) {
+      this.emit(playerId, { type: "error", code, message });
+    }
+    roomOf(playerId) {
+      const code = this.playerRoom.get(playerId);
+      if (!code) return void 0;
+      return this.rooms.get(code);
+    }
+    freshCode() {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        let code = "";
+        for (let i = 0; i < 4; i++) code += ALPHABET[Math.floor(this.rng() * ALPHABET.length)] ?? "A";
+        if (!this.rooms.has(code)) return code;
+      }
+      return randomToken().replace(/-/g, "").slice(0, 4).toUpperCase();
+    }
+  };
+  function randomToken() {
+    const cryptoObj = globalThis.crypto;
+    if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
+    if (cryptoObj?.getRandomValues) {
+      const bytes = new Uint8Array(16);
+      cryptoObj.getRandomValues(bytes);
+      return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    }
+    return `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`;
+  }
+  function defaultPhaseMs(phase) {
+    if (phase === "lobby" || phase === "ended") return null;
+    if (phase in RULES.phaseMs) return RULES.phaseMs[phase];
+    return null;
+  }
+
+  // src/trial/session.ts
+  var TRIAL_PHASE_MS = {
+    boot: 7e3,
+    day_talk: 4e4,
+    draft: 28e3,
+    vote: 24e3,
+    resolve: 4e3,
+    night: 28e3,
+    check: 4e3
+  };
+  function createTrialSession(onMessage, opts = {}) {
+    const playerId = opts.playerId ?? "trial-human";
+    const phaseTable = { ...TRIAL_PHASE_MS, ...opts.phaseMs };
+    const hub = new RoomHub({
+      timers: opts.timers ?? true,
+      autoAi: true,
+      fillAiOnCreate: true,
+      rng: opts.rng,
+      phaseMs: (phase) => {
+        if (phase === "lobby" || phase === "ended") return null;
+        return phaseTable[phase] ?? null;
+      }
+    });
+    hub.bind(playerId, onMessage);
+    return {
+      playerId,
+      send(message) {
+        hub.handle(playerId, message);
+      },
+      close() {
+        hub.shutdown();
+      }
+    };
+  }
+
+  // src/trial/browser.ts
+  var current = null;
+  function readOptions(optionsJson) {
+    if (!optionsJson) return {};
+    try {
+      const parsed = JSON.parse(optionsJson);
+      if (!parsed || typeof parsed !== "object") return {};
+      return parsed;
+    } catch {
+      return {};
+    }
+  }
+  function open(listener, optionsJson) {
+    current?.close();
+    current = createTrialSession((message) => {
+      listener(JSON.stringify(message));
+    }, readOptions(optionsJson));
+  }
+  function send(json) {
+    current?.send(JSON.parse(json));
+  }
+  function close() {
+    current?.close();
+    current = null;
+  }
+  return __toCommonJS(browser_exports);
+})();

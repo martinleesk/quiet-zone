@@ -57,7 +57,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "封鎖夜 · 標準 Mode",
+                      controller.trial ? "封鎖夜 · 標準 Mode 試玩" : "封鎖夜 · 標準 Mode",
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ],
@@ -88,12 +88,19 @@ class _HomePageState extends State<HomePage> {
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(color: const Color(0xFFE7C27A), height: 1.05),
                     ),
                     const SizedBox(height: 4),
-                    Text("封鎖夜 · 標準 Mode", style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      controller.trial ? "封鎖夜 · 標準 Mode 試玩" : "封鎖夜 · 標準 Mode",
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 8),
-                    const Text("私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"),
+                    Text(controller.trial
+                        ? "你坐一席。其餘由 AI 補滿，徽章會一直顯示。唔使開伺服器。"
+                        : "私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"),
                     const SizedBox(height: 6),
                     Text(
-                      "Android 模擬器可試 ws://10.0.2.2:8787/ws。本機桌面用 127.0.0.1。",
+                      controller.trial
+                          ? "請轉橫向。準備好就可以提早進入下一段。"
+                          : "Android 模擬器可試 ws://10.0.2.2:8787/ws。本機桌面用 127.0.0.1。",
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -122,7 +129,9 @@ class _HomePageState extends State<HomePage> {
       padding: EdgeInsets.fromLTRB(dense ? 12 : 24, dense ? 8 : 24, dense ? 12 : 24, dense ? 8 : 24),
       children: [
         if (includeIntro) ...[
-          const Text("私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"),
+          Text(controller.trial
+              ? "你坐一席。其餘由 AI 補滿，徽章會一直顯示。唔使開伺服器。"
+              : "私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"),
           const SizedBox(height: 16),
         ],
         OutlinedButton(
@@ -130,12 +139,14 @@ class _HomePageState extends State<HomePage> {
           child: const Text("角色圖鑑", textAlign: TextAlign.center),
         ),
         SizedBox(height: dense ? 8 : 24),
-        TextField(
-          controller: _url,
-          decoration: const InputDecoration(labelText: "伺服器"),
-          autocorrect: false,
-        ),
-        SizedBox(height: gap),
+        if (!controller.trial) ...[
+          TextField(
+            controller: _url,
+            decoration: const InputDecoration(labelText: "伺服器"),
+            autocorrect: false,
+          ),
+          SizedBox(height: gap),
+        ],
         TextField(
           controller: _name,
           decoration: const InputDecoration(labelText: "暱稱"),
@@ -148,27 +159,30 @@ class _HomePageState extends State<HomePage> {
           ),
         SizedBox(height: gap),
         FilledButton(
-          onPressed: controller.busy ? null : () => controller.createRoom(_url.text, _name.text),
-          child: const Text("開私人房", textAlign: TextAlign.center),
+          key: controller.trial ? const Key("trial-open") : null,
+          onPressed: controller.busy ? null : () => controller.createRoom(controller.trial ? "" : _url.text, _name.text),
+          child: Text(controller.trial ? "開試玩房" : "開私人房", textAlign: TextAlign.center),
         ),
-        SizedBox(height: dense ? 8 : 28),
-        TextField(
-          controller: _code,
-          decoration: const InputDecoration(labelText: "房間代碼"),
-          textCapitalization: TextCapitalization.characters,
-        ),
-        SizedBox(height: gap),
-        OutlinedButton(
-          onPressed: controller.busy
-              ? null
-              : () => controller.joinRoom(
-                    _url.text,
-                    _code.text,
-                    _name.text,
-                  ),
-          child: const Text("用代碼加入", textAlign: TextAlign.center),
-        ),
-        if (includeIntro) ...[
+        if (!controller.trial) ...[
+          SizedBox(height: dense ? 8 : 28),
+          TextField(
+            controller: _code,
+            decoration: const InputDecoration(labelText: "房間代碼"),
+            textCapitalization: TextCapitalization.characters,
+          ),
+          SizedBox(height: gap),
+          OutlinedButton(
+            onPressed: controller.busy
+                ? null
+                : () => controller.joinRoom(
+                      _url.text,
+                      _code.text,
+                      _name.text,
+                    ),
+            child: const Text("用代碼加入", textAlign: TextAlign.center),
+          ),
+        ],
+        if (includeIntro && !controller.trial) ...[
           const SizedBox(height: 16),
           const Text("Android 模擬器可試 ws://10.0.2.2:8787/ws。本機桌面用 127.0.0.1。"),
         ],

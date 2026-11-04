@@ -4,10 +4,15 @@ import "dart:convert";
 import "package:flutter/foundation.dart";
 import "package:web_socket_channel/web_socket_channel.dart";
 
+import "game_link.dart";
 import "protocol.dart";
 
 class GameController extends ChangeNotifier {
-  GameController({GameSnapshot? preview}) : snapshot = preview;
+  GameController({GameSnapshot? preview, this.link, this.trial = false}) : snapshot = preview;
+
+  /// In-memory or browser trial. Skips the WebSocket address.
+  final bool trial;
+  final GameLink? link;
 
   GameSnapshot? snapshot;
   String? error;
@@ -27,18 +32,22 @@ class GameController extends ChangeNotifier {
     _serverUrl = url.trim();
     _reclaimToken = null;
     _leaving = false;
-    return _connect(_serverUrl!, {"type": "create_room", "nickname": nickname});
+    final hello = {"type": "create_room", "nickname": nickname};
+    if (link != null) return _connectLink(hello);
+    return _connect(_serverUrl!, hello);
   }
 
   Future<void> joinRoom(String url, String code, String nickname) {
     _serverUrl = url.trim();
     _reclaimToken = null;
     _leaving = false;
-    return _connect(_serverUrl!, {
+    final hello = {
       "type": "join_room",
       "code": code.trim(),
       "nickname": nickname,
-    });
+    };
+    if (link != null) return _connectLink(hello);
+    return _connect(_serverUrl!, hello);
   }
 
   void startGame() => _send({"type": "start_game"});
@@ -88,10 +97,32 @@ class GameController extends ChangeNotifier {
     _sub = null;
     await _channel?.sink.close();
     _channel = null;
+    await link?.close();
     snapshot = null;
     error = null;
     busy = false;
     notifyListeners();
+  }
+
+  Future<void> _connectLink(Map<String, dynamic> hello) async {
+    final active = link;
+    if (active == null) return;
+    busy = true;
+    error = null;
+    notifyListeners();
+    try {
+      await active.open(_onLinked);
+      active.send(hello);
+    } catch (err) {
+      error = "試玩引擎未載入。請重新開頁。";
+    } finally {
+      busy = false;
+      notifyListeners();
+    }
+  }
+
+  void _onLinked(Map<String, dynamic> message) {
+    _apply(message);
   }
 
   Future<void> _connect(String url, Map<String, dynamic> hello) async {
@@ -151,6 +182,10 @@ class GameController extends ChangeNotifier {
   }
 
   void _send(Map<String, dynamic> message) {
+    if (link != null) {
+      link!.send(message);
+      return;
+    }
     final channel = _channel;
     if (channel == null) {
       error = "未連線。";
@@ -164,7 +199,11 @@ class GameController extends ChangeNotifier {
     if (raw is! String) return;
     final decoded = jsonDecode(raw);
     if (decoded is! Map) return;
-    final message = parseServerMessage(Map<String, dynamic>.from(decoded));
+    _apply(Map<String, dynamic>.from(decoded));
+  }
+
+  void _apply(Map<String, dynamic> decoded) {
+    final message = parseServerMessage(decoded);
     if (message is SnapshotMessage) {
       snapshot = message.snapshot;
       error = null;
@@ -183,6 +222,7 @@ class GameController extends ChangeNotifier {
     _countdown?.cancel();
     _sub?.cancel();
     _channel?.sink.close();
+    link?.close();
     super.dispose();
   }
 }
