@@ -38,3 +38,8 @@ apps/mobile/.ios/
 tmp/
 temp/
 .cache/
+
+# Headless sim dumps. The checked-in sample stays.
+docs/trial/logs/*
+!docs/trial/logs/sample.jsonl
+!docs/trial/logs/sample-summary.json

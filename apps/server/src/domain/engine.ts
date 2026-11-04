@@ -1,5 +1,23 @@
 import { RULES } from "../config/rules.js";
-import { AI_NICKNAMES, DRAFT_PHRASES, PHASE_TIPS, SILENCE_TEMPLATES, TALK_PHRASES, speakTalk } from "./phrases.js";
+import { AI_NICKNAMES, PHASE_TIPS, SILENCE_TEMPLATES } from "./phrases.js";
+import {
+  personaById,
+  personaForSeat,
+  duelPresserId,
+  shouldSpeak,
+  speakPriority,
+  type Accusation,
+  type PersonaId,
+  type ThinkContext,
+  dayPlan,
+  draftLine,
+  nightCommand,
+  nightSide,
+  silenceLine,
+  talkDecision,
+  voteTarget,
+  wantsAnonymous,
+} from "./persona.js";
 import { FACTION_LABEL, PHASE_LABEL, ROLES, STANDARD_DEAL } from "./roles.js";
 import type {
   Faction,
@@ -40,6 +58,11 @@ interface SeatState {
   anonymousVoteUsed: boolean;
   reclaimToken: string | null;
   lobbyReady: boolean;
+  /** Null on a live human. Assigned for AI fillers and again if AI takes the seat. */
+  personaId: PersonaId | null;
+  sweeps: Record<string, "clean" | "dirty">;
+  linkedUsed: Record<string, boolean>;
+  everPinned: boolean;
 }
 
 interface Ballot {
@@ -77,8 +100,37 @@ function shuffle<T>(items: readonly T[], rng: () => number): T[] {
 
 export interface EngineOptions {
   rng?: () => number;
-  /** When true, AI seats act from the phrase bank and follow the human vote leader. */
+  /**
+   * When true, AI seats act from the phrase bank.
+   * A unique human vote leader is still copied (rule C). With no human ballot,
+   * each seat uses its own persona.
+   */
   autoAi?: boolean;
+  /**
+   * Rotates which persona sits in which chair. Same salt + same seat index is stable.
+   * Does not consume `rng`, so scripted deals stay put.
+   */
+  personaSalt?: number;
+}
+
+export interface AiSeatDebug {
+  seatId: string;
+  nickname: string;
+  isAi: boolean;
+  alive: boolean;
+  roleId: RoleId | null;
+  personaId: PersonaId | null;
+  personaLabel: string | null;
+}
+
+export interface AiTraceEvent {
+  round: number;
+  night: number;
+  phase: Phase;
+  seatId: string;
+  personaId: PersonaId | null;
+  kind: "talk" | "draft" | "vote" | "night" | "silence" | "pin" | "link" | "fake" | "mark";
+  detail: string;
 }
 
 /**
@@ -88,6 +140,7 @@ export interface EngineOptions {
 export class GameEngine {
   private readonly rng: () => number;
   private readonly autoAi: boolean;
+  private readonly personaSalt: number;
   private readonly seats: SeatState[] = [];
   private phase: Phase = "lobby";
   private round = 0;
@@ -106,10 +159,14 @@ export class GameEngine {
   private silenceNotes: Array<{ seatId: string; nickname: string; text: string }> = [];
   private silenceSent = new Map<string, number>();
   private deadlineAt: number | null = null;
+  private accusations: Accusation[] = [];
+  private aiTrace: AiTraceEvent[] = [];
 
   constructor(opts: EngineOptions = {}) {
     this.rng = opts.rng ?? Math.random;
     this.autoAi = opts.autoAi ?? false;
+    const salt = opts.personaSalt ?? 0;
+    this.personaSalt = Number.isFinite(salt) ? Math.trunc(salt) : 0;
   }
 
   getPhase(): Phase {
@@ -269,6 +326,7 @@ export class GameEngine {
     this.pinSeq += 1;
     this.pins.push({ id: `pin${this.pinSeq}`, text: body, unverified: false });
     seat.seat.pinnedThisRound = true;
+    seat.seat.everPinned = true;
     this.markSkill(seat.seat);
     this.pushLog(`釘選｜${seat.seat.nickname}：${body}`);
     return ok();
@@ -287,6 +345,7 @@ export class GameEngine {
     if (target.id === seat.seat.id) return fail("illegal_target", "唔可以核對自己。");
     seat.seat.linkedThisRound = true;
     this.markSkill(seat.seat);
+    seat.seat.linkedUsed[target.id] = target.usedSkillLastRound;
     const used = target.usedSkillLastRound ? "用過" : "未用過";
     seat.seat.inbox.push(`通聯：${target.nickname} 上回合${used}主動技能。`);
     return ok();
@@ -327,6 +386,7 @@ export class GameEngine {
     if (this.phase === "lobby") return fail("not_started", "未開局。");
     if (seat.isAi) return ok();
     seat.isAi = true;
+    if (!seat.personaId) seat.personaId = personaForSeat(this.seatIndex(seat), this.personaSalt).id;
     this.pushLog(`${seat.nickname} 斷線，AI 接管同一席。徽章保持。`);
     if (this.autoAi && seat.alive) {
       this.catchUpAi(seat);
@@ -469,7 +529,7 @@ export class GameEngine {
         return;
       case "vote":
         this.fillMissingVotes();
-        this.syncAiVotes();
+        this.syncAiVotes(true);
         this.resolveVotes();
         this.beginPhase("resolve");
         return;
@@ -571,6 +631,26 @@ export class GameEngine {
     };
   }
 
+  /**
+   * Seat personas and the decision trace. For sims and debugging.
+   * Not part of the player snapshot, so the HUD stays clear of persona labels.
+   */
+  debugAi(): { salt: number; seats: AiSeatDebug[]; trace: AiTraceEvent[] } {
+    return {
+      salt: this.personaSalt,
+      seats: this.seats.map((seat) => ({
+        seatId: seat.id,
+        nickname: seat.nickname,
+        isAi: seat.isAi,
+        alive: seat.alive,
+        roleId: seat.roleId,
+        personaId: seat.personaId,
+        personaLabel: seat.personaId ? personaById(seat.personaId).label : null,
+      })),
+      trace: this.aiTrace.map((event) => ({ ...event })),
+    };
+  }
+
   private makeSeat(playerId: string, nickname: string, isAi: boolean): SeatState {
     return {
       id: `s${this.seats.length + 1}`,
@@ -595,6 +675,10 @@ export class GameEngine {
       anonymousVoteUsed: false,
       reclaimToken: null,
       lobbyReady: false,
+      personaId: isAi ? personaForSeat(this.seats.length, this.personaSalt).id : null,
+      sweeps: {},
+      linkedUsed: {},
+      everPinned: false,
     };
   }
 
@@ -683,76 +767,100 @@ export class GameEngine {
 
   private aiTalk(): void {
     if (!this.autoAi) return;
-    for (const seat of this.sampleAi(3)) {
-      this.submitChat(seat.playerId, this.aiTalkLine(seat));
-    }
+    for (const seat of this.selectSpeakers()) this.speakAs(seat);
   }
 
-  /** Same short verbs as the human chips. 疑／保 name one living seat. */
-  private aiTalkLine(seat: SeatState): string {
-    const phrase = TALK_PHRASES[(this.seatIndex(seat) + this.round) % TALK_PHRASES.length]!;
-    if (phrase !== "疑" && phrase !== "保") return phrase;
-    const others = this.seats.filter((item) => item.alive && item.id !== seat.id);
-    if (others.length === 0) return phrase;
-    const target = others[(this.seatIndex(seat) + this.round) % others.length]!;
-    return speakTalk(phrase, target.nickname);
+  /** A few AI lines per phase so the public log stays readable. Quiet personas keep one slot. */
+  private selectSpeakers(): SeatState[] {
+    const pool = this.seats.filter((seat) => seat.isAi && seat.alive && seat.personaId && !this.isSealed(seat));
+    const ranked = pool
+      .filter((seat) => shouldSpeak(seat.personaId!, this.round, this.seatIndex(seat), this.personaSalt))
+      .sort((a, b) => speakPriority(b.personaId!) - speakPriority(a.personaId!) || this.seatIndex(a) - this.seatIndex(b));
+    const loud = ranked.filter((seat) => speakPriority(seat.personaId!) >= 2);
+    const quiet = ranked.filter((seat) => speakPriority(seat.personaId!) <= 1);
+    const picked: SeatState[] = [];
+    if (loud[0]) picked.push(loud[0]);
+    if (quiet[0]) picked.push(quiet[0]);
+    for (const seat of loud.slice(1)) {
+      if (picked.length >= 4) break;
+      picked.push(seat);
+    }
+    if (picked.length === 0 && pool[0]) {
+      const fallback = [...pool].sort(
+        (a, b) => speakPriority(b.personaId!) - speakPriority(a.personaId!) || this.seatIndex(a) - this.seatIndex(b),
+      );
+      if (fallback[0]) picked.push(fallback[0]);
+    }
+    return picked;
+  }
+
+  private speakAs(seat: SeatState): void {
+    if (!seat.personaId || this.isSealed(seat)) return;
+    const decision = talkDecision(this.think(seat));
+    const step = this.submitChat(seat.playerId, decision.text);
+    if (!step.ok) return;
+    if (decision.targetId && (decision.kind === "疑" || decision.kind === "保")) {
+      this.accusations.push({ fromId: seat.id, targetId: decision.targetId, kind: decision.kind, round: this.round });
+    }
+    this.pushTrace(seat, "talk", decision.text);
   }
 
   private aiDraft(): void {
     if (!this.autoAi) return;
-    for (const seat of this.sampleAi(3)) {
-      const phrase = DRAFT_PHRASES[(this.seatIndex(seat) + this.round) % DRAFT_PHRASES.length]!;
-      this.submitDraft(seat.playerId, phrase);
+    let sent = 0;
+    for (const seat of this.seats) {
+      if (sent >= 8) break;
+      if (!seat.isAi || !seat.alive || this.isSealed(seat) || !seat.personaId) continue;
+      const line = draftLine(this.think(seat));
+      if (!line) continue;
+      const step = this.submitDraft(seat.playerId, line);
+      if (!step.ok) continue;
+      sent += 1;
+      this.pushTrace(seat, "draft", line);
     }
-  }
-
-  /** A few AI lines per phase so the public log stays readable. */
-  private sampleAi(limit: number): SeatState[] {
-    const pool = this.seats.filter((seat) => seat.isAi && seat.alive && !this.isSealed(seat));
-    const rotated = pool.filter((seat) => (this.seatIndex(seat) + this.round) % 3 === 0);
-    return (rotated.length > 0 ? rotated : pool).slice(0, limit);
   }
 
   private aiDaySkills(): void {
     if (!this.autoAi) return;
     for (const seat of this.seats) {
       if (!seat.isAi || !seat.alive || !seat.roleId || this.isSealed(seat)) continue;
-      if (seat.roleId === "tip") this.submitPin(seat.playerId, "我釘低一句：未見足夠失聯痕跡。");
-      if (seat.roleId === "link") {
-        const target = this.seats.find((item) => item.alive && item.id !== seat.id);
-        if (target) this.submitLink(seat.playerId, target.id);
-      }
-      if (seat.roleId === "decoy" && seat.fakeCharges > 0) {
-        const pin = this.pins.find((item) => !item.unverified);
-        if (pin) this.submitFake(seat.playerId, { mode: "flag", pinId: pin.id });
-        else this.submitFake(seat.playerId, { mode: "plant", text: "有人話呢席唔乾淨。" });
-      }
+      this.applyDayPlan(seat);
+    }
+  }
+
+  private applyDayPlan(seat: SeatState): void {
+    if (!seat.personaId || !seat.alive) return;
+    const plan = dayPlan(this.think(seat));
+    if (plan.pin && seat.roleId === "tip" && !seat.pinnedThisRound) {
+      const step = this.submitPin(seat.playerId, plan.pin);
+      if (step.ok) this.pushTrace(seat, "pin", plan.pin);
+    }
+    if (plan.linkId && seat.roleId === "link" && !seat.linkedThisRound) {
+      const step = this.submitLink(seat.playerId, plan.linkId);
+      if (step.ok) this.pushTrace(seat, "link", plan.linkId);
+    }
+    if (plan.fake && seat.roleId === "decoy" && seat.fakeCharges > 0) {
+      const step = this.submitFake(seat.playerId, plan.fake);
+      if (step.ok) this.pushTrace(seat, "fake", plan.fake.mode);
+    }
+    if (plan.markId && seat.roleId === "warrant") {
+      const step = this.submitSuspect(seat.playerId, plan.markId, true);
+      if (step.ok) this.pushTrace(seat, "mark", plan.markId);
     }
   }
 
   private catchUpAi(seat: SeatState): void {
+    if (!seat.personaId) seat.personaId = personaForSeat(this.seatIndex(seat), this.personaSalt).id;
     if (this.phase === "day_talk") {
-      if (!this.isSealed(seat) && !(this.chatCount.get(seat.playerId) ?? 0)) {
-        this.submitChat(seat.playerId, this.aiTalkLine(seat));
-      }
-      if (seat.roleId === "tip") this.submitPin(seat.playerId, "接管後釘低：我沿用原席觀察。");
-      if (seat.roleId === "link") {
-        const target = this.seats.find((item) => item.alive && item.id !== seat.id);
-        if (target) this.submitLink(seat.playerId, target.id);
-      }
-      if (seat.roleId === "decoy" && seat.fakeCharges > 0 && !seat.usedSkillThisRound) {
-        this.submitFake(seat.playerId, { mode: "plant", text: "接管席放低一句來源未核。" });
-      }
+      if (!this.isSealed(seat) && !(this.chatCount.get(seat.playerId) ?? 0)) this.speakAs(seat);
+      if (!this.isSealed(seat)) this.applyDayPlan(seat);
     } else if (this.phase === "draft" && !this.drafts.has(seat.playerId) && !this.isSealed(seat)) {
-      this.submitDraft(seat.playerId, DRAFT_PHRASES[this.seatIndex(seat) % DRAFT_PHRASES.length] ?? "");
+      const line = draftLine(this.think(seat));
+      if (line) this.submitDraft(seat.playerId, line);
     } else if (this.phase === "vote" && !this.votes.has(seat.playerId)) {
       this.syncAiVotes();
     } else if (this.phase === "night") {
-      if (!this.nightActions.has(seat.playerId)) {
-        const command = this.scriptedAiNight(seat);
-        if (command) this.submitNight(seat.playerId, command);
-      }
-      this.postAiSilence(seat);
+      this.actNight(seat);
     }
   }
 
@@ -760,42 +868,41 @@ export class GameEngine {
     if (!this.autoAi) return;
     for (const seat of this.seats) {
       if (!seat.isAi || !seat.alive || !seat.roleId) continue;
-      const command = this.scriptedAiNight(seat);
-      if (command) this.submitNight(seat.playerId, command);
-      this.postAiSilence(seat);
+      this.actNight(seat);
     }
+  }
+
+  private actNight(seat: SeatState): void {
+    if (!this.nightActions.has(seat.playerId)) {
+      const command = nightCommand(this.think(seat));
+      if (command) {
+        const step = this.submitNight(seat.playerId, command);
+        if (step.ok) this.pushTrace(seat, "night", `${command.action}:${command.targetSeatId ?? "none"}`);
+      }
+    }
+    const side = nightSide(this.think(seat));
+    if (side && seat.roleId === "decoy" && seat.fakeCharges > 0) {
+      const step = this.submitFake(seat.playerId, side);
+      if (step.ok) this.pushTrace(seat, "fake", `night-${side.mode}`);
+    }
+    this.postAiSilence(seat);
   }
 
   private postAiSilence(seat: SeatState): void {
     if (!this.autoAi || this.phase !== "night") return;
     if (!seat.isAi || !seat.alive || this.factionOf(seat) !== "silence") return;
-    const line = SILENCE_TEMPLATES[this.seatIndex(seat) % SILENCE_TEMPLATES.length]!;
-    this.submitSilence(seat.playerId, line);
+    if ((this.silenceSent.get(seat.playerId) ?? 0) >= 1) return;
+    const line = silenceLine(this.think(seat));
+    const step = this.submitSilence(seat.playerId, line);
+    if (step.ok) this.pushTrace(seat, "silence", line);
   }
 
-  private scriptedAiNight(seat: SeatState): NightCommand | null {
-    const role = seat.roleId;
-    if (role === "silencer") {
-      const target = this.seats.find((item) => item.alive && item.id !== seat.id && this.factionOf(item) !== "silence");
-      return target ? { action: "disconnect", targetSeatId: target.id } : { action: "skip" };
-    }
-    if (role === "cover") {
-      const target = this.seats.find((item) => item.alive && item.id !== seat.id);
-      return target ? { action: "cover", targetSeatId: target.id } : { action: "skip" };
-    }
-    if (role === "sweep") {
-      const target = this.seats.find((item) => item.alive && item.id !== seat.id);
-      return target ? { action: "sweep", targetSeatId: target.id } : { action: "skip" };
-    }
-    if (role === "warrant") {
-      const target = this.seats.find((item) => item.alive && item.id !== seat.id && !seat.silenceMarks.includes(item.id));
-      return target ? { action: "mark", targetSeatId: target.id } : { action: "skip" };
-    }
-    return null;
-  }
-
-  /** AI copy the unique human leader. A split human vote stays a tie. */
-  private syncAiVotes(): void {
+  /**
+   * Rule C: once any living human has balloted, AI copy that unique leader.
+   * A split or an all-abstain human table stays a tie — personas must not break it.
+   * With no human ballot (an all-AI table), each seat votes in its own style.
+   */
+  private syncAiVotes(record = false): void {
     if (!this.autoAi || this.phase !== "vote") return;
     const humanTargets: Array<string | null> = [];
     for (const seat of this.seats) {
@@ -803,15 +910,84 @@ export class GameEngine {
       if (!this.votes.has(seat.playerId)) continue;
       humanTargets.push(this.votes.get(seat.playerId)?.target ?? null);
     }
+    const followMajority = humanTargets.length > 0;
     const leader = uniqueLeader(humanTargets);
+    const living = this.seats.filter((seat) => seat.alive);
+    const duelPresser = followMajority
+      ? null
+      : duelPresserId(living.map((seat) => ({ id: seat.id, index: this.seatIndex(seat), personaId: seat.personaId })));
     for (const seat of this.seats) {
       if (!seat.isAi || !seat.alive) continue;
-      const target = leader == null || leader === seat.id ? null : leader;
-      this.votes.set(seat.playerId, {
-        target,
-        anonymous: seat.roleId === "plant" && !seat.anonymousVoteUsed && target != null,
-      });
+      let target: string | null;
+      let via: string;
+      if (followMajority) {
+        target = leader == null || leader === seat.id ? null : leader;
+        via = leader == null ? "split" : "follow";
+      } else if (duelPresser) {
+        const other = living.find((item) => item.id !== seat.id);
+        target = seat.id === duelPresser ? (other?.id ?? null) : null;
+        via = seat.id === duelPresser ? "duel" : "duel-hold";
+      } else {
+        target = seat.personaId ? voteTarget(this.think(seat)) : null;
+        if (target === seat.id) target = null;
+        if (target) {
+          const picked = this.seatById(target);
+          if (!picked || !picked.alive) target = null;
+          else if (this.factionOf(seat) === "silence" && this.factionOf(picked) === "silence") target = null;
+        }
+        via = "persona";
+      }
+      const anonymous =
+        seat.roleId === "plant" &&
+        !seat.anonymousVoteUsed &&
+        target != null &&
+        (followMajority || wantsAnonymous(seat.personaId ?? "follower"));
+      this.votes.set(seat.playerId, { target, anonymous });
+      if (record) this.pushTrace(seat, "vote", `${via}:${target ?? "abstain"}`);
     }
+  }
+
+  private think(seat: SeatState): ThinkContext {
+    return {
+      selfId: seat.id,
+      selfIndex: this.seatIndex(seat),
+      selfRole: seat.roleId,
+      selfFaction: this.factionOf(seat),
+      selfPersona: seat.personaId,
+      seats: this.seats.map((item, index) => ({
+        id: item.id,
+        index,
+        nickname: item.nickname,
+        alive: item.alive,
+      })),
+      round: this.round,
+      night: this.nightNumber,
+      salt: this.personaSalt,
+      phase: this.phase,
+      accusations: this.accusations,
+      pinSeatIds: this.seats.filter((item) => item.everPinned).map((item) => item.id),
+      sweeps: seat.sweeps,
+      linkedUsed: seat.linkedUsed,
+      teammates: this.teammatesFor(seat).map((item) => item.seatId),
+      marks: seat.silenceMarks,
+      coverReady: this.nightNumber >= seat.coverReadyNight,
+      sealUsed: seat.sealUsed,
+      fakeCharges: seat.fakeCharges,
+      openPinIds: this.pins.filter((pin) => !pin.unverified).map((pin) => pin.id),
+    };
+  }
+
+  private pushTrace(seat: SeatState, kind: AiTraceEvent["kind"], detail: string): void {
+    this.aiTrace.push({
+      round: this.round,
+      night: this.nightNumber,
+      phase: this.phase,
+      seatId: seat.id,
+      personaId: seat.personaId,
+      kind,
+      detail,
+    });
+    if (this.aiTrace.length > 500) this.aiTrace.shift();
   }
 
   private fillMissingDrafts(): void {
@@ -939,6 +1115,7 @@ export class GameEngine {
         target.sweepFog -= 1;
         clean = true;
       }
+      seat.sweeps[target.id] = clean ? "clean" : "dirty";
       seat.inbox.push(clean ? `掃頻：${target.nickname} 訊號乾淨。` : `掃頻：${target.nickname} 有消音痕跡。`);
     }
 
