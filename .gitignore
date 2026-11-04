@@ -39,7 +39,9 @@ tmp/
 temp/
 .cache/
 
-# Headless sim dumps. The checked-in sample stays.
+# Headless sim dumps. The checked-in sample and campaign summary stay.
 docs/trial/logs/*
 !docs/trial/logs/sample.jsonl
 !docs/trial/logs/sample-summary.json
+!docs/trial/logs/campaign-50-summary.json
+!docs/trial/logs/campaign-sample.jsonl
