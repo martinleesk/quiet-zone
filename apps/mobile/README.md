@@ -15,6 +15,6 @@ flutter run
 
 美術同性別鎖定見 [ART.md](ART.md)。角色半身同燈亮／熄燈場景係風格化 3D 渲染。
 
-試玩（瀏覽器入面跑權威狀態機，唔使伺服器）：`flutter run -d chrome -t lib/trial_main.dart`。手機可以直接開 [`docs/trial`](../../docs/trial/README.md)。
+試玩而家係訊號牌（瀏覽器入面跑權威狀態機，唔使伺服器）：先喺 `apps/server` 行 `npm run build:trial`，再 `flutter run -d chrome -t lib/trial_main.dart`。手機可以直接開 [`docs/trial/signal`](../../docs/trial/signal/index.html)。舊標準 Mode 係 `lib/classic_trial_main.dart`。
 
 畫面切換示範：`flutter run -d chrome -t lib/demo_main.dart`，或者 [`docs/ui-demo`](../../docs/ui-demo/README.md)。

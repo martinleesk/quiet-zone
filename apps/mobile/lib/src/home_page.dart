@@ -57,7 +57,7 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      controller.trial ? "封鎖夜 · 標準 Mode 試玩" : "封鎖夜 · 標準 Mode",
+                      controller.trial ? "封鎖夜 · 標準 Mode 試玩" : "封鎖夜 · 舊標準 Mode",
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                   ],
@@ -89,13 +89,13 @@ class _HomePageState extends State<HomePage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      controller.trial ? "封鎖夜 · 標準 Mode 試玩" : "封鎖夜 · 標準 Mode",
+                      controller.trial ? "封鎖夜 · 標準 Mode 試玩" : "封鎖夜 · 舊標準 Mode",
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     const SizedBox(height: 8),
                     Text(controller.trial
                         ? "你坐一席。其餘由 AI 補滿，徽章會一直顯示。唔使開伺服器。"
-                        : "私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"),
+                        : "私人房 11 席。空位由 AI 補上。新玩法係訊號牌試玩。"),
                     const SizedBox(height: 6),
                     Text(
                       controller.trial
@@ -131,7 +131,7 @@ class _HomePageState extends State<HomePage> {
         if (includeIntro) ...[
           Text(controller.trial
               ? "你坐一席。其餘由 AI 補滿，徽章會一直顯示。唔使開伺服器。"
-              : "私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"),
+              : "私人房 11 席。空位由 AI 補上。新玩法係訊號牌試玩。"),
           const SizedBox(height: 16),
         ],
         OutlinedButton(

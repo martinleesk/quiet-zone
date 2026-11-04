@@ -2,21 +2,20 @@ import "dart:async";
 
 import "package:flutter/widgets.dart";
 
-import "main.dart";
-import "src/game_controller.dart";
-import "src/trial_link.dart";
+import "main.dart" show lockQuietZoneLandscape;
+import "src/signal/signal_page.dart";
 
-/// Solo Standard Mode trial. One human seat, AI fills the table,
+/// Solo 訊號牌 trial. One human seat, AI fills the table,
 /// and the authoritative loop runs in the page (no separate server).
 ///
 /// ```bash
-/// cd apps/mobile
-/// flutter run -d chrome -t lib/trial_main.dart
+/// cd apps/server && npm run build:trial
+/// cd ../mobile && flutter run -d chrome -t lib/trial_main.dart
 /// ```
 ///
-/// Phone browsers can open the published build, or `docs/trial/index.html`.
+/// Phone browsers can also open `docs/trial/signal/index.html`.
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   unawaited(lockQuietZoneLandscape());
-  runApp(QuietZoneApp(controller: GameController(trial: true, link: createTrialLink())));
+  runApp(const SignalApp());
 }

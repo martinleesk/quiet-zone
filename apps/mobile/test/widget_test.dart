@@ -422,7 +422,7 @@ void main() {
     await tester.pumpWidget(const QuietZoneApp());
     expect(find.byKey(const Key("landscape-home")), findsOneWidget);
     _expectFullyVisible(tester, find.text("消音區"));
-    _expectFullyVisible(tester, find.text("私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"));
+    _expectFullyVisible(tester, find.text("私人房 11 席。空位由 AI 補上。新玩法係訊號牌試玩。"));
     _expectFullyVisible(tester, find.text("開私人房"));
     _expectFullyVisible(tester, find.text("用代碼加入"));
     _expectFullyVisible(tester, find.text("角色圖鑑"));

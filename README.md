@@ -1,8 +1,48 @@
 # quiet-zone（消音區・封鎖夜）
 
-文字為主、I人友善的隱藏身份推理手遊。呢個 repo 係**標準 Mode 第一個可玩豎切**：私人房、權威狀態機、抽身分、投票隔離、熄燈行動、勝負檢定。進階 Mode 係 Phase 2。
+文字為主、I人友善的隱藏身份推理手遊。而家嘅試玩係**封鎖夜 · 訊號牌**：夜部署、晨報、短討論、出牌、表決斷線。舊 A–G 標準 Mode 仲留喺 repo，但唔再係主路徑。
 
-全原創造詞。唔用其他社交推理遊戲嘅商標、角色名或者技能名。
+全原創造詞。唔用其他社交推理遊戲嘅商標、角色名、技能名或者牌面文案。
+
+## 訊號牌（主試玩）
+
+五人一桌。你一席，AI 補滿，徽章一直亮。牌同勝條件讀 [`docs/signal/cards.json`](docs/signal/cards.json) 同 [`docs/signal/table.json`](docs/signal/table.json)。回合說明喺 [`docs/signal/loop.md`](docs/signal/loop.md)。
+
+| | |
+| --- | --- |
+| 回合 | 夜 → 晨報 → 日（75 秒）→ 出牌 → 表決 → 結算 |
+| 出牌 | 最多 1 武、1 道，可裝 1 防。場上 1 武槽 + 1 防槽 |
+| 手牌 | 上限 4，每輪抽 1，超額先棄 |
+| 勝 | 灰頻去到第 4 節點；消音組令燈塔網斷線滿 2；燈塔網揪走全部干擾源 |
+
+### 手機或者瀏覽器
+
+請轉橫向。
+
+<https://raw.githack.com/martinleesk/quiet-zone/main/docs/trial/signal/index.html>
+
+本機唔使 Flutter，亦唔使開伺服器。喺 repo 根目錄：
+
+```bash
+python3 -m http.server 8090
+```
+
+然後開 <http://127.0.0.1:8090/docs/trial/signal/>。`?at=play` 同 `?at=vote` 直接去嗰段。`?fast=1` 縮時。
+
+入口頁 [`docs/trial/index.html`](docs/trial/index.html) 會導去訊號牌。舊標準 Mode 喺 [`docs/trial/classic.html`](docs/trial/classic.html)。
+
+### Flutter 試玩
+
+```bash
+cd apps/server
+npm install
+npm run build:trial
+cd ../mobile
+flutter pub get
+flutter run -d chrome -t lib/trial_main.dart
+```
+
+`lib/trial_main.dart` 係訊號牌。舊標準 Mode 嘅 Flutter 試玩係 `lib/classic_trial_main.dart`。Pages 設成 GitHub Actions 之後，試玩會發佈到 `https://martinleesk.github.io/quiet-zone/`。
 
 ## 技術棧（已鎖定 · Martin 2026-11-04）
 
@@ -11,7 +51,7 @@
 - 身分、技能合法性、投票、勝負只信任 server
 - AI 補位永遠顯示徽章，可以抽到消音手
 
-規則常數喺 [`apps/server/src/config/rules.ts`](apps/server/src/config/rules.ts)（A–G，2026-11-04）：
+下面係舊標準 Mode，唔再係試玩主路徑。規則常數喺 [`apps/server/src/config/rules.ts`](apps/server/src/config/rules.ts)（A–G，2026-11-04）：
 
 | | 規則 |
 | --- | --- |
@@ -83,13 +123,9 @@ App 預設連 `ws://127.0.0.1:8787/ws`。Android 模擬器改做 `ws://10.0.2.2:
 
 桌面跑唔到 Flutter 時，用上面嘅 `npm test` 同 `npm run demo` 就睇到完整規則循環。
 
-### 試玩（手機瀏覽器）
+### 試玩
 
-唔使裝 Flutter，亦唔使開伺服器。橫向打開，一個人打標準 Mode：AI 補滿 11 席，行燈亮、草稿、投票、熄燈同終局。
-
-<https://raw.githack.com/martinleesk/quiet-zone/main/docs/trial/index.html>
-
-點開同本機指令見 [`docs/trial/README.md`](docs/trial/README.md)。Flutter 網頁入口係 `flutter run -d chrome -t lib/trial_main.dart`。Pages 設成 GitHub Actions 之後，試玩會發佈到 `https://martinleesk.github.io/quiet-zone/`。
+主路徑見上面「訊號牌」。舊 11 人標準 Mode 試玩係 [`docs/trial/classic.html`](docs/trial/classic.html)，說明喺 [`docs/trial/README.md`](docs/trial/README.md)。
 
 靜態畫面切換（未連局）仍然喺 [`docs/ui-demo`](docs/ui-demo/README.md)。
 
