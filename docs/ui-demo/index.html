@@ -315,8 +315,8 @@
             <img src="art/roles/cover.jpg" alt="">
             <div>
               <div class="kicker">你嘅身分</div>
-              <h2>掩護員 · 燈塔網</h2>
-              <p>臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。</p>
+              <h2>掩護 · 燈塔網</h2>
+              <p>熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。</p>
             </div>
           </div>
         </div>
@@ -354,8 +354,8 @@
             <img src="art/roles/cover.jpg" alt="">
             <div>
               <div class="kicker">你嘅身分</div>
-              <h2>掩護員 · 燈塔網</h2>
-              <p>臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。</p>
+              <h2>掩護 · 燈塔網</h2>
+              <p>熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。</p>
             </div>
           </div>
         </div>
@@ -370,7 +370,7 @@
           </div>
           <div class="dock">
             <div class="chips" id="night-actions">
-              <button type="button" class="pick on" data-action="臨時掩護">臨時掩護</button>
+              <button type="button" class="pick on" data-action="掩護呢個人">掩護呢個人</button>
               <button type="button" class="pick" data-action="跳過今夜">跳過今夜</button>
             </div>
             <div class="chips" id="night-targets"></div>
@@ -387,16 +387,16 @@
   <div class="toast" id="toast"></div>
   <script>
     const roles = [
-      { id: "tip", name: "線報員", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "釘選殘訊：每個燈亮可釘一條公開資訊上時間線，唔佔發言格。", busts: ["art/roles/tip.jpg"] },
-      { id: "sweep", name: "掃頻員", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "熄燈掃頻：私下得知目標係「消音痕跡」定「訊號乾淨」。", busts: ["art/roles/sweep.jpg"] },
-      { id: "cover", name: "掩護員", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。", busts: ["art/roles/cover.jpg"] },
-      { id: "echo", name: "回波師", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "失聯回波：有人被投票隔離後，你私下收到陣營殘片。", busts: ["art/roles/echo.jpg"] },
-      { id: "link", name: "通聯官", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "核對通聯：每個燈亮可查一人上回合用過主動技能未，唔會話你知係邊種。", busts: ["art/roles/link.jpg"] },
-      { id: "civilian", name: "燈塔閒職", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "無主動技能。你可以發言、草稿、投票。", busts: ["art/roles/civilian_f.jpg", "art/roles/civilian_m.jpg"] },
-      { id: "silencer", name: "消音手", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功失聯 3 次，或者燈塔網已無法投票。", skill: "執行失聯：熄燈令一名未受掩護嘅玩家失聯移出。", busts: ["art/roles/silencer.jpg"] },
-      { id: "decoy", name: "假訊員", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功失聯 3 次，或者燈塔網已無法投票。", skill: "投放假訊：每局兩次。可以將釘選標做待核實，或者放一句來源未核。", busts: ["art/roles/decoy.jpg"] },
-      { id: "plant", name: "影內應", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功失聯 3 次，或者燈塔網已無法投票。", skill: "訊號霧：第一次被掃頻固定回「訊號乾淨」。每局一次匿名票。", busts: ["art/roles/plant.jpg"] },
-      { id: "warrant", name: "孤證客", faction: "grey", label: "灰頻", color: "#9AA7B5", win: "孤證客仍在場，正確標記消音組達 2 即獨贏。", skill: "私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。", busts: ["art/roles/warrant.jpg"] }
+      { id: "tip", name: "線報", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", skill: "燈亮可以釘一句公開線報，唔佔你嘅發言。", busts: ["art/roles/tip.jpg"] },
+      { id: "sweep", name: "掃頻", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", skill: "熄燈揀一個人，私下知道佢係消音定乾淨。", busts: ["art/roles/sweep.jpg"] },
+      { id: "cover", name: "掩護", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", skill: "熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。", busts: ["art/roles/cover.jpg"] },
+      { id: "echo", name: "回波", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", skill: "有人被票走之後，你私下收到佢係邊個陣營。", busts: ["art/roles/echo.jpg"] },
+      { id: "link", name: "通聯", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", skill: "燈亮揀一個人，知道佢上一輪用過技能未。", busts: ["art/roles/link.jpg"] },
+      { id: "civilian", name: "守燈", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", skill: "冇技能。你靠講一句、寫草稿同投票。", busts: ["art/roles/civilian_f.jpg", "art/roles/civilian_m.jpg"] },
+      { id: "silencer", name: "消音手", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功帶走 3 個人，或者燈塔網票唔到，就贏。", skill: "熄燈揀一個冇掩護嘅人，令佢離場。", busts: ["art/roles/silencer.jpg"] },
+      { id: "decoy", name: "假訊", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功帶走 3 個人，或者燈塔網票唔到，就贏。", skill: "每局兩次。可以放一句假料，或者標一條線報未核實。", busts: ["art/roles/decoy.jpg"] },
+      { id: "plant", name: "影燈", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功帶走 3 個人，或者燈塔網票唔到，就贏。", skill: "第一次被掃頻會顯示乾淨。投票可以匿名一次。", busts: ["art/roles/plant.jpg"] },
+      { id: "warrant", name: "孤證", faction: "grey", label: "灰頻", color: "#9AA7B5", win: "孤證仍然在場，暗標中兩個消音就獨贏。", skill: "暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。", busts: ["art/roles/warrant.jpg"] }
     ];
     const seats = [
       ["s1", "夜歸人", false, true, false],

@@ -42,6 +42,7 @@ test("flutter role catalog copies every standard role and skill", () => {
   for (const role of Object.values(ROLES)) {
     assert.equal(dart.includes(role.name), true, role.name);
     assert.equal(dart.includes(role.skill), true, role.skill);
+    assert.equal(dart.includes(role.mnemonic), true, role.mnemonic);
     assert.equal(dart.includes(FACTION_LABEL[role.faction]), true, role.faction);
   }
   assert.equal(ids.filter((id) => id === "civilian").length, 1);

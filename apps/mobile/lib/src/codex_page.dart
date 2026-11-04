@@ -254,7 +254,7 @@ class _FactionBand extends StatelessWidget {
           builder: (context, constraints) {
             final count = math.max(1, group.roles.length);
             const spacing = 6.0;
-            final columns = math.max(1, math.min(count, (constraints.maxWidth / 78).floor()));
+            final columns = math.max(1, math.min(count, (constraints.maxWidth / 92).floor()));
             final gaps = spacing * (columns - 1);
             final tileW = math.max(0.0, ((constraints.maxWidth - gaps) / columns).floorToDouble());
             return Wrap(
@@ -295,11 +295,21 @@ class _RoleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = factionAccent(role.faction);
-    final name = Text(
-      role.name,
-      textAlign: wide ? TextAlign.start : TextAlign.center,
-      softWrap: true,
-      style: Theme.of(context).textTheme.bodyMedium,
+    final name = Column(
+      crossAxisAlignment: wide ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+      children: [
+        Text(
+          role.name,
+          textAlign: wide ? TextAlign.start : TextAlign.center,
+          softWrap: true,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        Text(
+          role.mnemonic,
+          textAlign: wide ? TextAlign.start : TextAlign.center,
+          style: const TextStyle(fontSize: 10, height: 1.0, color: Color(0xFF9AA7B5)),
+        ),
+      ],
     );
     return Material(
       color: const Color(0xFF17202A),
@@ -317,10 +327,10 @@ class _RoleTile extends StatelessWidget {
           ),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final bustH = wide ? 72.0 : 52.0;
+              final bustH = wide ? 64.0 : 36.0;
               final gap = role.id == "civilian" ? 4.0 : 0.0;
               final slots = role.id == "civilian" ? 2 : 1;
-              final bustW = math.max(0.0, math.min(wide ? 54.0 : 44.0, (constraints.maxWidth - gap * (slots - 1)) / slots));
+              final bustW = math.max(36.0, math.min(wide ? 54.0 : 64.0, (constraints.maxWidth - gap * (slots - 1)) / slots));
               final busts = _RoleBusts(role: role, accent: accent, width: bustW, height: bustH);
               if (wide) {
                 return Row(
@@ -438,12 +448,15 @@ class _RoleCodexDetail extends StatelessWidget {
                     ],
                   ),
                   Text(factionLabelOf(role.faction), style: TextStyle(color: accent)),
+                  Text("記法：${role.mnemonic}", style: const TextStyle(color: Color(0xFF9AA7B5))),
                 ],
               ),
             ),
           ],
         ),
         const SizedBox(height: 8),
+        Text("技能點用：${role.when}", softWrap: true),
+        const SizedBox(height: 4),
         Text(role.skill, softWrap: true),
         const SizedBox(height: 8),
         Text("點贏", style: Theme.of(context).textTheme.labelLarge?.copyWith(color: accent)),

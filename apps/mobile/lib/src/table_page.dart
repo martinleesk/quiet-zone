@@ -4,6 +4,7 @@ import "package:flutter/material.dart";
 
 import "ai_badge.dart";
 import "art.dart";
+import "coach.dart";
 import "codex_page.dart";
 import "frame.dart";
 import "game_controller.dart";
@@ -63,13 +64,10 @@ class _TablePageState extends State<TablePage> {
         toolbarHeight: landscape ? 48 : null,
         title: Text(public.phaseLabel.isEmpty ? public.phase : public.phaseLabel),
         actions: [
-          if ((widget.controller.secondsLeft ?? public.secondsLeft) != null)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Text("剩餘 ${widget.controller.secondsLeft ?? public.secondsLeft} 秒"),
-              ),
-            ),
+          PhaseClock(
+            seconds: widget.controller.secondsLeft ?? public.secondsLeft,
+            total: widget.controller.phaseBudget ?? public.secondsLeft,
+          ),
           IconButton(
             tooltip: "角色圖鑑",
             onPressed: () => openRoleCodex(context),
@@ -110,7 +108,7 @@ class _TablePageState extends State<TablePage> {
                       ),
                   ],
                 ),
-                ..._channelBlock(public, mine),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: _channelBlock(public, mine)),
               ],
             ),
           ),
@@ -159,7 +157,7 @@ class _TablePageState extends State<TablePage> {
                         children: [
                           ..._statusBlock(public, mine, compact: true),
                           ..._recordBlock(public),
-                          ..._channelBlock(public, mine, compact: true),
+                          Column(crossAxisAlignment: CrossAxisAlignment.start, children: _channelBlock(public, mine, compact: true)),
                         ],
                       ),
                     ),
@@ -167,7 +165,7 @@ class _TablePageState extends State<TablePage> {
                     ConstrainedBox(
                       constraints: BoxConstraints(maxHeight: actionMax),
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+                        padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
                         child: Theme(
                           data: Theme.of(context).copyWith(
                             visualDensity: VisualDensity.compact,
@@ -311,6 +309,8 @@ class _TablePageState extends State<TablePage> {
       children: [
         Text("你嘅身分", style: Theme.of(context).textTheme.labelLarge),
         Text("${role.name} · ${role.factionLabel}", style: titleSize ?? Theme.of(context).textTheme.titleLarge),
+        if (role.mnemonic.isNotEmpty)
+          Text("記法：${role.mnemonic}", style: const TextStyle(color: Color(0xFFE7C27A))),
         const SizedBox(height: 4),
         Text(role.skill, softWrap: true),
         if (mine.teammates.isNotEmpty)
@@ -330,6 +330,8 @@ class _TablePageState extends State<TablePage> {
   List<Widget> _statusBlock(PublicView public, PrivateView mine, {bool compact = false}) {
     final gap = compact ? 4.0 : 8.0;
     return [
+      CoachLine(phase: public.phase),
+      const SizedBox(height: 4),
       ..._tips(mine),
       Text(public.banner, softWrap: true),
       SizedBox(height: gap),
@@ -496,7 +498,7 @@ class _TablePageState extends State<TablePage> {
             padding: const EdgeInsets.only(bottom: 8),
             child: FilledButton(
               onPressed: _target == null ? null : () => widget.controller.skill("link", targetId: _target),
-              child: const Text("核對通聯"),
+              child: Text(action.label),
             ),
           )
         else if (action.action == "mark")
@@ -614,6 +616,7 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            SkillCue(public: public, mine: mine),
             Wrap(
               spacing: 6,
               children: [
@@ -647,6 +650,7 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            SkillCue(public: public, mine: mine),
             const Text("私人草稿。留空都得。"),
             const SizedBox(height: 8),
             TextField(
@@ -668,6 +672,7 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            SkillCue(public: public, mine: mine),
             Text(mine.muted ? "你被封口，而家只可以投票。" : "投一個仍在場嘅人，或者棄權。平票就流局，唔會隔離。結算先公開票簿。"),
             if (mine.anonymousVote) ...[
               const SizedBox(height: 8),
@@ -707,11 +712,11 @@ class _TablePageState extends State<TablePage> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              SkillCue(public: public, mine: mine),
               ..._silenceChannel(public, mine),
               ..._skillControls(public, mine),
-              Text(mine.skillActions.isEmpty ? "你今夜沒有主動技能。" : "可以改標記，或者放假訊。"),
               const SizedBox(height: 8),
-              FilledButton(onPressed: widget.controller.ready, child: const Text("跳過並準備", textAlign: TextAlign.center)),
+              FilledButton(onPressed: widget.controller.ready, child: const Text("跳過", textAlign: TextAlign.center)),
             ],
           );
         }
@@ -721,6 +726,7 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            SkillCue(public: public, mine: mine),
             ..._silenceChannel(public, mine),
             ..._skillControls(public, mine),
             Wrap(
@@ -749,7 +755,7 @@ class _TablePageState extends State<TablePage> {
               ),
             ],
             const SizedBox(height: 8),
-            const Text("未提交就準備，會當跳過。"),
+            const Text("未撳就當跳過。"),
             const SizedBox(height: 8),
             _actionPair(
               sideBySide: sideBySide,
@@ -757,9 +763,9 @@ class _TablePageState extends State<TablePage> {
                 onPressed: choice.needsTarget && _target == null
                     ? null
                     : () => widget.controller.night(choice.action, targetSeatId: choice.needsTarget ? _target : null),
-                child: const Text("提交行動", textAlign: TextAlign.center),
+                child: const Text("發動", textAlign: TextAlign.center),
               ),
-              second: OutlinedButton(onPressed: widget.controller.ready, child: const Text("準備好", textAlign: TextAlign.center)),
+              second: OutlinedButton(onPressed: widget.controller.ready, child: const Text("跳過", textAlign: TextAlign.center)),
             ),
           ],
         );

@@ -215,6 +215,8 @@ class PrivateRole {
     required this.faction,
     required this.factionLabel,
     required this.skill,
+    this.mnemonic = "",
+    this.when = "",
   });
 
   final String id;
@@ -222,6 +224,8 @@ class PrivateRole {
   final String faction;
   final String factionLabel;
   final String skill;
+  final String mnemonic;
+  final String when;
 
   factory PrivateRole.fromJson(Map<String, dynamic> json) {
     return PrivateRole(
@@ -230,6 +234,8 @@ class PrivateRole {
       faction: json["faction"]?.toString() ?? "",
       factionLabel: json["factionLabel"]?.toString() ?? "",
       skill: json["skill"]?.toString() ?? "",
+      mnemonic: json["mnemonic"]?.toString() ?? "",
+      when: json["when"]?.toString() ?? "",
     );
   }
 }

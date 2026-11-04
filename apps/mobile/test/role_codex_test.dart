@@ -23,9 +23,9 @@ void main() {
     ]);
     expect(roles.where((role) => role.id == "civilian"), hasLength(1));
     expect(kCodexFactions.map((group) => group.label), ["燈塔網", "消音組", "灰頻"]);
-    expect(kCodexFactions[0].blurb, "消音組全部離場就解封。");
-    expect(kCodexFactions[1].blurb, "成功失聯 3 次，或者燈塔網已無法投票。");
-    expect(kCodexFactions[2].blurb, "孤證客仍在場，正確標記消音組達 2 即獨贏。");
+    expect(kCodexFactions[0].blurb, "消音組全部離場就贏。");
+    expect(kCodexFactions[1].blurb, "成功帶走 3 個人，或者燈塔網票唔到，就贏。");
+    expect(kCodexFactions[2].blurb, "孤證仍然在場，暗標中兩個消音就獨贏。");
     expect(roles.every((role) => roleBustAsset(role.id) != null), isTrue);
     expect(roleBustAsset("silencer"), ArtCatalog.silencer);
     expect(roleBustAsset("link"), ArtCatalog.link);
@@ -33,7 +33,7 @@ void main() {
     expect(roleBustAsset("civilian"), ArtCatalog.civilianF);
     expect(
       roles.firstWhere((role) => role.id == "warrant").skill,
-      "私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。",
+      "暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。",
     );
   });
 
@@ -64,8 +64,8 @@ void main() {
     await tester.tap(find.byKey(const Key("codex-role:warrant")));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key("codex-detail")), findsOneWidget);
-    expect(find.text("私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。"), findsOneWidget);
-    expect(find.text("孤證客仍在場，正確標記消音組達 2 即獨贏。"), findsOneWidget);
+    expect(find.text("暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。"), findsOneWidget);
+    expect(find.text("孤證仍然在場，暗標中兩個消音就獨贏。"), findsOneWidget);
     expect(find.text("點贏"), findsOneWidget);
     expect(find.text("灰頻"), findsWidgets);
     expect(find.text("你嘅身分"), findsNothing);
@@ -73,12 +73,12 @@ void main() {
     await tester.tap(find.byTooltip("關閉詳情"));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key("codex-detail")), findsNothing);
-    expect(find.text("私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。"), findsNothing);
+    expect(find.text("暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。"), findsNothing);
 
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.text("開私人房"), findsOneWidget);
-    expect(find.text("線報員"), findsNothing);
+    expect(find.text("線報"), findsNothing);
   });
 
   testWidgets("lobby keeps the room open under the codex", (tester) async {
@@ -88,7 +88,7 @@ void main() {
     expect(find.text("組席"), findsOneWidget);
     await tester.tap(find.text("角色圖鑑"));
     await tester.pumpAndSettle();
-    expect(find.text("掃頻員"), findsOneWidget);
+    expect(find.text("掃頻"), findsOneWidget);
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
     expect(find.text("ABCD"), findsOneWidget);
@@ -108,7 +108,7 @@ void main() {
     expect(find.textContaining("有消音痕跡"), findsOneWidget);
     await tester.tap(find.byTooltip("角色圖鑑"));
     await tester.pumpAndSettle();
-    expect(find.text("通聯官"), findsOneWidget);
+    expect(find.text("通聯"), findsOneWidget);
     expect(find.textContaining("有消音痕跡"), findsNothing);
     expect(find.text("你嘅身分"), findsNothing);
     await tester.tap(find.byType(BackButton));
@@ -142,8 +142,8 @@ void main() {
     await tester.tap(find.byKey(const Key("codex-role:link")));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key("codex-detail")), findsOneWidget);
-    expect(find.text("核對通聯：每個燈亮可查一人上回合用過主動技能未，唔會話你知係邊種。"), findsOneWidget);
-    expect(find.text("消音組全部離場就解封。"), findsOneWidget);
+    expect(find.text("燈亮揀一個人，知道佢上一輪用過技能未。"), findsOneWidget);
+    expect(find.text("消音組全部離場就贏。"), findsOneWidget);
     expect(find.text("點贏"), findsOneWidget);
     expect(find.text("燈塔網"), findsWidgets);
     for (final role in kStandardRoles.where((role) => role.id != "link")) {

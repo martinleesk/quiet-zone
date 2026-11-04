@@ -111,7 +111,7 @@ class _UiDemoShellState extends State<UiDemoShell> {
   }
 }
 
-const _coverSkill = "臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。";
+const _coverSkill = "熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。";
 
 const _tableSeats = <PublicSeat>[
   PublicSeat(id: "s1", nickname: "夜歸人", isAi: false, alive: true, sealed: false),
@@ -191,7 +191,7 @@ GameSnapshot _tableSnapshot({required bool night}) {
       ready: false,
       role: const PrivateRole(
         id: "cover",
-        name: "掩護員",
+        name: "掩護",
         faction: "lighthouse",
         factionLabel: "燈塔網",
         skill: _coverSkill,
@@ -200,7 +200,7 @@ GameSnapshot _tableSnapshot({required bool night}) {
       inbox: const [],
       nightActions: night
           ? const [
-              NightChoice(action: "cover", label: "臨時掩護", needsTarget: true),
+              NightChoice(action: "cover", label: "掩護呢個人", needsTarget: true),
               NightChoice(action: "skip", label: "跳過今夜", needsTarget: false),
             ]
           : const [],

@@ -39,6 +39,7 @@ export function createTrialSession(
     timers: opts.timers ?? true,
     autoAi: true,
     fillAiOnCreate: true,
+    previewDeal: true,
     rng: opts.rng,
     phaseMs: (phase: Phase) => {
       if (phase === "lobby" || phase === "ended") return null;

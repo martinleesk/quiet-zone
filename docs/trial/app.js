@@ -1,25 +1,46 @@
 const ART = "../ui-demo/art";
 
 const ROLES = [
-  { id: "tip", name: "線報員", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "釘選殘訊：每個燈亮可釘一條公開資訊上時間線，唔佔發言格。", busts: ["roles/tip.jpg"] },
-  { id: "sweep", name: "掃頻員", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "熄燈掃頻：私下得知目標係「消音痕跡」定「訊號乾淨」。", busts: ["roles/sweep.jpg"] },
-  { id: "cover", name: "掩護員", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。", busts: ["roles/cover.jpg"] },
-  { id: "echo", name: "回波師", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "失聯回波：有人被投票隔離後，你私下收到陣營殘片。", busts: ["roles/echo.jpg"] },
-  { id: "link", name: "通聯官", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "核對通聯：每個燈亮可查一人上回合用過主動技能未，唔會話你知係邊種。", busts: ["roles/link.jpg"] },
-  { id: "civilian", name: "燈塔閒職", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "無主動技能。你可以發言、草稿、投票。", busts: ["roles/civilian_f.jpg", "roles/civilian_m.jpg"] },
-  { id: "silencer", name: "消音手", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功失聯 3 次，或者燈塔網已無法投票。", skill: "執行失聯：熄燈令一名未受掩護嘅玩家失聯移出。", busts: ["roles/silencer.jpg"] },
-  { id: "decoy", name: "假訊員", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功失聯 3 次，或者燈塔網已無法投票。", skill: "投放假訊：每局兩次。可以將釘選標做待核實，或者放一句來源未核。", busts: ["roles/decoy.jpg"] },
-  { id: "plant", name: "影內應", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功失聯 3 次，或者燈塔網已無法投票。", skill: "訊號霧：第一次被掃頻固定回「訊號乾淨」。每局一次匿名票。", busts: ["roles/plant.jpg"] },
-  { id: "warrant", name: "孤證客", faction: "grey", label: "灰頻", color: "#9AA7B5", win: "孤證客仍在場，正確標記消音組達 2 即獨贏。", skill: "私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。", busts: ["roles/warrant.jpg"] },
+  { id: "tip", name: "線報", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", mnemonic: "燈亮釘一句", when: "燈亮", skill: "燈亮可以釘一句公開線報，唔佔你嘅發言。", busts: ["roles/tip.jpg"] },
+  { id: "sweep", name: "掃頻", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", mnemonic: "熄燈查人", when: "熄燈", skill: "熄燈揀一個人，私下知道佢係消音定乾淨。", busts: ["roles/sweep.jpg"] },
+  { id: "cover", name: "掩護", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", mnemonic: "擋一夜", when: "熄燈", skill: "熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。", busts: ["roles/cover.jpg"] },
+  { id: "echo", name: "回波", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", mnemonic: "票走先有料", when: "有人被票走之後", skill: "有人被票走之後，你私下收到佢係邊個陣營。", busts: ["roles/echo.jpg"] },
+  { id: "link", name: "通聯", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", mnemonic: "查上輪", when: "燈亮", skill: "燈亮揀一個人，知道佢上一輪用過技能未。", busts: ["roles/link.jpg"] },
+  { id: "civilian", name: "守燈", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就贏。", mnemonic: "冇技能", when: "冇", skill: "冇技能。你靠講一句、寫草稿同投票。", busts: ["roles/civilian_f.jpg", "roles/civilian_m.jpg"] },
+  { id: "silencer", name: "消音手", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功帶走 3 個人，或者燈塔網票唔到，就贏。", mnemonic: "熄燈帶走", when: "熄燈", skill: "熄燈揀一個冇掩護嘅人，令佢離場。", busts: ["roles/silencer.jpg"] },
+  { id: "decoy", name: "假訊", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功帶走 3 個人，或者燈塔網票唔到，就贏。", mnemonic: "整亂線報", when: "燈亮或熄燈", skill: "每局兩次。可以放一句假料，或者標一條線報未核實。", busts: ["roles/decoy.jpg"] },
+  { id: "plant", name: "影燈", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功帶走 3 個人，或者燈塔網票唔到，就贏。", mnemonic: "第一次裝乾淨", when: "被查或者投票", skill: "第一次被掃頻會顯示乾淨。投票可以匿名一次。", busts: ["roles/plant.jpg"] },
+  { id: "warrant", name: "孤證", faction: "grey", label: "灰頻", color: "#9AA7B5", win: "孤證仍然在場，暗標中兩個消音就獨贏。", mnemonic: "暗標兩個就贏", when: "隨時標，熄燈封口", skill: "暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。", busts: ["roles/warrant.jpg"] },
 ];
+
+const COACH = {
+  home: { line: "11 人隱藏身份。你要估邊三個係消音組。", bullets: ["燈亮講一句", "投票隔離", "熄燈先用技能"] },
+  lobby: { line: "記住你係邊個，再開始燈亮", bullets: ["你坐一席", "其餘係 AI", "徽章會一直在"] },
+  boot: { line: "記住身份，再去燈亮", bullets: ["睇你嘅名", "睇技能一句", "撳開始"] },
+  day_talk: { line: "講一句你懷疑邊個", bullets: ["有技能先撳發動", "講完撳準備好", "倒數見大數字"] },
+  draft: { line: "寫低你想點投票", bullets: ["可以留空", "然後準備", "平票就冇人走"] },
+  vote: { line: "揀一個人票走", bullets: ["平票就冇人走", "可以棄權", "撳準備先結算"] },
+  resolve: { line: "等幾秒就熄燈", bullets: [] },
+  night: { line: "熄燈先撳發動", bullets: ["有技能先揀目標", "冇就撳跳過", "倒數見大數字"] },
+  check: { line: "睇下有冇人贏", bullets: [] },
+  ended: { line: "局完，身份公開", bullets: [] },
+};
 
 const TALK = ["我暫時未有實錘。", "我傾向跟多數。", "隔離要小心。", "未見足夠失聯痕跡。"];
 const SILENCE = ["今夜我建議失聯一個燈塔席。", "可能有掩護，換一個目標。", "我跟組內嘅選擇。", "今輪跳過，唔好暴露。", "小心灰頻，唔好亂送頭。"];
 
 const app = document.getElementById("app");
 const phaseLabel = document.getElementById("phase-label");
+const roleChip = document.getElementById("role-chip");
+const coachEl = document.getElementById("coach");
+const coachArrows = document.getElementById("coach-arrows");
 const clockEl = document.getElementById("clock");
+const clockUnit = document.getElementById("clock-unit");
+const meter = document.getElementById("meter");
+const meterFill = document.getElementById("meter-fill");
 const leaveBtn = document.getElementById("leave");
+const overlay = document.getElementById("overlay");
+const sheet = document.getElementById("sheet");
 
 let view = null;
 let errorText = "";
@@ -28,9 +49,13 @@ let selected = "";
 let nightAction = "";
 let anonymous = false;
 let lastPhase = "";
+let paintedPhase = "";
 let serverSeconds = null;
+let phaseTotal = null;
 let clockAnchor = 0;
 let sessionOpen = false;
+let roleGo = false;
+const seenTips = new Set();
 
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -78,21 +103,33 @@ function aliveOthers(pub, priv) {
 
 function paintClock() {
   if (serverSeconds == null) {
-    clockEl.textContent = "";
+    clockEl.textContent = "—";
+    clockEl.classList.remove("low");
+    clockUnit.textContent = "";
+    meter.classList.remove("low");
+    meterFill.style.width = "0";
     return;
   }
   const elapsed = Math.floor((Date.now() - clockAnchor) / 1000);
   const left = Math.max(0, serverSeconds - elapsed);
-  clockEl.textContent = `剩餘 ${left} 秒`;
+  const low = left <= 5;
+  clockEl.textContent = String(left);
+  clockEl.classList.toggle("low", low);
+  clockUnit.textContent = "秒";
+  meter.classList.toggle("low", low);
+  const total = phaseTotal || serverSeconds || 1;
+  meterFill.style.width = `${Math.max(0, Math.min(100, (left / total) * 100))}%`;
 }
 
-function syncClock(seconds) {
+function syncClock(seconds, phaseChanged) {
   if (seconds == null) {
     serverSeconds = null;
+    phaseTotal = null;
     paintClock();
     return;
   }
-  if (seconds !== serverSeconds) {
+  if (phaseChanged || seconds !== serverSeconds) {
+    if (phaseChanged || phaseTotal == null || seconds > phaseTotal) phaseTotal = seconds;
     serverSeconds = seconds;
     clockAnchor = Date.now();
   }
@@ -126,7 +163,8 @@ function roleCard(priv) {
   if (!role) return "";
   const mates = (priv.teammates || []).map((mate) => `${esc(mate.nickname)}（${esc(mate.roleName)}）`).join("、");
   const marks = (priv.marks || []).join("、");
-  return `<div class="me-card"><img class="${bustClass(role.id, priv.seatId)}" src="${esc(bustSrc(role.id, priv.seatId))}" alt=""><div><div class="kicker">你嘅身分</div><h2>${esc(role.name)} · ${esc(role.factionLabel)}</h2><p>${esc(role.skill)}</p>${mates ? `<p>組員：${mates}</p>` : ""}${marks ? `<p>你嘅標記：${esc(marks)}</p>` : ""}</div></div>`;
+  const memo = role.mnemonic ? `<p class="small">記法：${esc(role.mnemonic)}</p>` : "";
+  return `<div class="me-card"><img class="${bustClass(role.id, priv.seatId)}" src="${esc(bustSrc(role.id, priv.seatId))}" alt=""><div><div class="kicker">你嘅身分</div><h2>${esc(role.name)} · ${esc(role.factionLabel)}</h2>${memo}<p>${esc(role.skill)}</p>${mates ? `<p>組員：${mates}</p>` : ""}${marks ? `<p>你嘅標記：${esc(marks)}</p>` : ""}</div></div>`;
 }
 
 function logBlock(pub, priv) {
@@ -171,20 +209,22 @@ function actions(pub, priv) {
   }
   if (pub.phase === "boot") return `<button class="btn fill" type="button" data-act="ready">我睇完身分</button>`;
   if (pub.phase === "day_talk") {
-    return `${chips(TALK.map((line) => ({ id: line, label: line })), "phrase", "")}
+    return `${skillCard(pub, priv)}
+      ${chips(TALK.map((line) => ({ id: line, label: line })), "phrase", "")}
       <label class="field"><span>短句</span><input id="line" type="text" maxlength="80" value="${esc(buffer)}"></label>
-      ${skillButtons(pub, priv)}
       <div class="row-btns"><button class="btn fill" type="button" data-act="chat">送出</button><button class="btn" type="button" data-act="ready">準備好</button></div>`;
   }
   if (pub.phase === "draft") {
-    return `<p>私人草稿。留空都得。</p>
+    return `${skillCard(pub, priv)}
+      <p>私人草稿。留空都得。</p>
       <label class="field"><span>草稿</span><input id="line" type="text" maxlength="80" value="${esc(buffer)}"></label>
       <button class="btn fill" type="button" data-act="draft">交草稿並準備</button>`;
   }
   if (pub.phase === "vote") {
     const choices = aliveOthers(pub, priv).map((seat) => ({ id: seat.id, label: `${seat.id} ${seat.nickname}` }));
     const anon = priv.anonymousVote ? `<button type="button" class="pick${anonymous ? " on" : ""}" data-act="anon">匿名票（每局一次）</button>` : "";
-    return `<p>${priv.muted ? "你被封口，而家只可以投票。" : "投一個仍在場嘅人，或者棄權。平票就流局，唔會隔離。"}</p>
+    return `${skillCard(pub, priv)}
+      <p>${priv.muted ? "你被封口，而家只可以投票。" : "投一個仍在場嘅人，或者棄權。平票就冇人走。"}</p>
       ${anon}
       ${chips(choices, "pick", selected)}
       <button class="btn fill" type="button" data-act="vote" ${selected ? "" : "disabled"}>確認投票</button>
@@ -192,60 +232,81 @@ function actions(pub, priv) {
   }
   if (pub.phase === "night") {
     const night = (priv.nightActions || []).filter((item) => item.action !== "mark");
-    const skills = skillButtons(pub, priv);
     const silence = priv.role && priv.role.faction === "silence"
       ? `<p class="small">夜訊只可以用模板，唔會公開。</p>${chips(SILENCE.map((line) => ({ id: line, label: line })), "silence", "")}`
       : "";
     if (!night.length) {
-      return `${silence}${skills}<p>${(priv.skillActions || []).length ? "可以改標記，或者放假訊。" : "你今夜沒有主動技能。"}</p><button class="btn fill" type="button" data-act="ready">跳過並準備</button>`;
+      return `${skillCard(pub, priv)}${silence}<button class="verb" type="button" data-act="ready">跳過</button>`;
     }
     const current = night.some((item) => item.action === nightAction) ? nightAction : night[0].action;
     nightAction = current;
     const choice = night.find((item) => item.action === current);
     const targets = (pub.seats || []).filter((seat) => seat.alive && (choice.action === "cover" || seat.id !== priv.seatId));
     const targetChips = choice.needsTarget ? chips(targets.map((seat) => ({ id: seat.id, label: `${seat.id} ${seat.nickname}` })), "pick", selected) : "";
-    return `${silence}${skills}
+    return `${skillCard(pub, priv)}${silence}
       ${chips(night.map((item) => ({ id: item.action, label: item.label })), "night-pick", current)}
-      ${targetChips}
-      <p class="small">未提交就準備，會當跳過。</p>
-      <div class="row-btns"><button class="btn fill" type="button" data-act="night" ${(choice.needsTarget && !selected) ? "disabled" : ""}>提交行動</button><button class="btn" type="button" data-act="ready">準備好</button></div>`;
+      ${choice.needsTarget ? `<p class="small">揀目標</p>${targetChips}` : ""}
+      <p class="small">未撳就當跳過。</p>
+      <div class="row-btns"><button class="verb" type="button" data-act="night" ${(choice.needsTarget && !selected) ? "disabled" : ""}>發動</button><button class="verb ghost" type="button" data-act="ready">跳過</button></div>`;
   }
   return `<p>${esc(pub.phaseLabel || "")}</p>`;
 }
 
-function skillButtons(pub, priv) {
+function skillCard(pub, priv) {
+  if (pub.phase === "boot" || pub.phase === "resolve" || pub.phase === "check" || pub.phase === "ended") return "";
   const skills = priv.skillActions || [];
-  if (!skills.length) return "";
+  const nightSkills = pub.phase === "night"
+    ? (priv.nightActions || []).filter((item) => item.action !== "skip" && item.action !== "mark")
+    : [];
+  if (!skills.length && !nightSkills.length) return `<p class="noskill">呢段冇得用技能</p>`;
+  const role = priv.role;
   const blocks = [];
   for (const action of skills) {
     if (action.action === "pin" || action.action === "fake_plant") {
-      blocks.push(`<button class="btn" type="button" data-act="skill" data-id="${esc(action.action)}">${esc(action.label)}</button>`);
+      blocks.push(`<button class="verb" type="button" data-act="skill" data-id="${esc(action.action)}">發動</button>`);
     } else if (action.action === "link") {
-      blocks.push(`<button class="btn" type="button" data-act="skill" data-id="link" ${selected ? "" : "disabled"}>核對通聯</button>`);
+      blocks.push(`<p class="small">揀目標</p>${chips(aliveOthers(pub, priv).map((seat) => ({ id: seat.id, label: seat.nickname })), "pick", selected)}`);
+      blocks.push(`<button class="verb" type="button" data-act="skill" data-id="link" ${selected ? "" : "disabled"}>發動</button>`);
     } else if (action.action === "mark") {
       const seats = aliveOthers(pub, priv).map((seat) => ({ id: seat.id, label: `${seat.id} ${seat.nickname}${(priv.marks || []).includes(seat.id) ? " · 已標" : ""}` }));
-      blocks.push(`<p class="small">私密標記。撳一下標記，再撳取消。唔會話你知係咪消音。</p>${chips(seats, "mark", "")}`);
+      blocks.push(`<p class="small">撳一下暗標，再撳取消。唔會話你知係咪消音。</p>${chips(seats, "mark", "")}`);
     } else if (action.action === "fake_flag") {
-      const pins = (pub.pins || []).filter((pin) => !pin.unverified).map((pin) => ({ id: pin.id, label: `待核實｜${pin.text}` }));
+      const pins = (pub.pins || []).filter((pin) => !pin.unverified).map((pin) => ({ id: pin.id, label: `未核實｜${pin.text}` }));
       blocks.push(chips(pins, "flag", ""));
     }
   }
-  if (skills.some((action) => action.action === "link")) {
-    blocks.push(chips(aliveOthers(pub, priv).map((seat) => ({ id: seat.id, label: seat.nickname })), "pick", selected));
-  }
-  return blocks.join("");
+  const explain = role ? `${esc(role.name)} · ${esc(role.skill)}` : "";
+  const when = role && role.when ? `<p class="small">幾時用：${esc(role.when)}</p>` : "";
+  return `<section class="skill-card" id="skill-card"><strong>發動技能</strong><p>${explain}</p>${when}${blocks.join("")}</section>`;
+}
+
+function setCoach(id) {
+  const coach = COACH[id] || { line: "跟住下面嘅掣", bullets: [] };
+  coachEl.textContent = `而家做咩：${coach.line}`;
+  coachArrows.innerHTML = (coach.bullets || []).slice(0, 3).map((item) => `<span>${esc(item)}</span>`).join("");
+}
+
+function syncBarHeight() {
+  const bar = document.querySelector(".bar");
+  if (bar) document.documentElement.style.setProperty("--bar-h", `${bar.offsetHeight}px`);
 }
 
 function paintHome() {
+  syncBarHeight();
   phaseLabel.textContent = "試玩";
+  roleChip.textContent = "隱藏身份 · 11 席";
+  setCoach("home");
   leaveBtn.hidden = true;
   document.body.dataset.phase = "home";
+  overlay.hidden = true;
+  syncClock(null);
   app.innerHTML = `<div class="home">
     <div class="scene day"><div class="copy">
       <h1>消音區</h1>
       <div class="sub">封鎖夜 · 標準 Mode 試玩</div>
-      <p>你坐一席。其餘十席由 AI 補上，徽章會一直顯示。燈亮、草稿、投票、熄燈都喺呢部機行。</p>
-      <p class="small">請轉橫向。準備好就可以提早進入下一段。</p>
+      <p>11 人隱藏身份。你要估邊三個係消音組。</p>
+      <p>燈亮講一句，然後投票。熄燈先用技能。上面會寫而家做咩。</p>
+      <p class="small">請轉橫向。倒數係上面個大數字。</p>
     </div></div>
     <form class="pane" id="home-form">
       <div class="dock" style="border-top:0;max-height:none">
@@ -264,13 +325,21 @@ function paint() {
     paintHome();
     return;
   }
+  syncBarHeight();
   const pub = view.public;
   const priv = view.private;
   const phase = pub.phase;
   document.body.dataset.phase = phase;
-  phaseLabel.textContent = pub.phaseLabel || phase;
+  const roundBit = phase === "lobby" ? "組席" : `第 ${pub.round || 0} 輪 · ${pub.phaseLabel || phase}`;
+  phaseLabel.textContent = roundBit;
+  const role = priv.role;
+  roleChip.textContent = role ? `${role.name} · ${role.factionLabel}${role.mnemonic ? ` · 記法 ${role.mnemonic}` : ""}` : "身份未派";
+  setCoach(phase);
   leaveBtn.hidden = false;
-  syncClock(pub.secondsLeft);
+  const phaseChanged = phase !== paintedPhase;
+  syncClock(pub.secondsLeft, phaseChanged);
+  paintedPhase = phase;
+  showOverlay(pub, priv);
   const focused = document.activeElement && document.activeElement.id === "line";
   const at = focused ? document.activeElement.selectionStart : null;
   const scroller = document.querySelector(".scroll");
@@ -316,6 +385,41 @@ function paint() {
   }
 }
 
+function showOverlay(pub, priv) {
+  const role = priv.role;
+  if (pub.phase === "lobby" && role && !seenTips.has("role")) {
+    const catalog = ROLES.find((item) => item.id === role.id);
+    sheet.innerHTML = `<div class="sheet-card">
+      <img class="${bustClass(role.id, priv.seatId)}" src="${esc(bustSrc(role.id, priv.seatId))}" alt="">
+      <div>
+        <div class="kicker">你係</div>
+        <h2 style="margin:0;color:var(--gold)">${esc(role.name)}</h2>
+        <p>${esc(role.factionLabel || "")} · 記法 ${esc(role.mnemonic || catalog?.mnemonic || "")}</p>
+        <p>${esc(role.skill)}</p>
+        <div class="row-btns">
+          <button class="btn fill" type="button" data-act="begin">開始燈亮</button>
+          <button class="btn" type="button" data-act="later">先睇下席</button>
+        </div>
+      </div>
+    </div>`;
+    overlay.hidden = false;
+    return;
+  }
+  const tipId = pub.phase === "day_talk" && pub.round === 1 ? "day" : pub.phase === "night" && pub.night === 1 ? "night" : "";
+  if (tipId && !seenTips.has(tipId)) {
+    const coach = COACH[pub.phase];
+    const tips = (coach.bullets || []).slice(0, 3).map((item) => `<p>${esc(item)}</p>`).join("");
+    sheet.innerHTML = `<div class="sheet-card"><div>
+      <p class="coach">而家做咩：${esc(coach.line)}</p>
+      ${tips}
+      <button class="btn fill" type="button" data-act="dismiss-tip" data-id="${tipId}">知道了</button>
+    </div></div>`;
+    overlay.hidden = false;
+    return;
+  }
+  overlay.hidden = true;
+}
+
 function onMessage(raw) {
   const message = JSON.parse(raw);
   if (message.type === "error") {
@@ -334,6 +438,11 @@ function onMessage(raw) {
     lastPhase = phase;
   }
   view = message;
+  if (phase === "boot" && roleGo) {
+    roleGo = false;
+    send({ type: "ready" });
+    return;
+  }
   paint();
 }
 
@@ -444,11 +553,37 @@ document.getElementById("close-codex").addEventListener("click", () => {
   document.getElementById("codex").hidden = true;
   document.getElementById("detail").hidden = true;
 });
+overlay.addEventListener("click", (event) => {
+  const node = event.target.closest("[data-act]");
+  if (!node) return;
+  const act = node.dataset.act;
+  if (act === "begin") {
+    seenTips.add("role");
+    roleGo = true;
+    overlay.hidden = true;
+    send({ type: "ready" });
+    send({ type: "start_game" });
+    return;
+  }
+  if (act === "later") {
+    seenTips.add("role");
+    overlay.hidden = true;
+    return;
+  }
+  if (act === "dismiss-tip") {
+    seenTips.add(node.dataset.id || "");
+    overlay.hidden = true;
+  }
+});
+
 leaveBtn.addEventListener("click", () => {
   if (sessionOpen && window.QuietZoneTrial) QuietZoneTrial.close();
   sessionOpen = false;
   view = null;
   lastPhase = "";
+  paintedPhase = "";
+  roleGo = false;
+  seenTips.clear();
   errorText = "";
   buffer = "";
   paint();
@@ -470,7 +605,7 @@ function paintCodex() {
   document.getElementById("codex-overview").innerHTML = groups.map(([id, label, cls]) => `
     <div class="band ${cls}">${label}</div>
     <div class="tiles">${ROLES.filter((role) => role.faction === id).map((role) => `
-      <button type="button" class="tile" data-role="${role.id}"><span>${busts(role)}</span><span>${role.name}</span></button>
+      <button type="button" class="tile${role.id === "civilian" ? " wide" : ""}" data-role="${role.id}"><span class="pair">${busts(role)}</span><span>${role.name}</span><span class="memo">記法：${role.mnemonic}</span></button>
     `).join("")}</div>`).join("");
 }
 
@@ -491,6 +626,14 @@ function openRole(id) {
   faction.style.color = role.color;
   document.getElementById("detail-skill").textContent = role.skill;
   document.getElementById("detail-win").textContent = role.win;
+  let memo = document.getElementById("detail-memo");
+  if (!memo) {
+    memo = document.createElement("p");
+    memo.id = "detail-memo";
+    memo.className = "small";
+    document.getElementById("detail-skill").before(memo);
+  }
+  memo.textContent = `記法：${role.mnemonic}`;
 }
 
 document.getElementById("codex-overview").addEventListener("click", (event) => {
