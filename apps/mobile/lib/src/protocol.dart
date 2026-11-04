@@ -5,6 +5,7 @@ class PublicSeat {
     required this.isAi,
     required this.alive,
     required this.sealed,
+    this.lobbyReady = false,
   });
 
   final String id;
@@ -12,6 +13,7 @@ class PublicSeat {
   final bool isAi;
   final bool alive;
   final bool sealed;
+  final bool lobbyReady;
 
   factory PublicSeat.fromJson(Map<String, dynamic> json) {
     return PublicSeat(
@@ -20,6 +22,7 @@ class PublicSeat {
       isAi: json["isAi"] == true,
       alive: json["alive"] != false,
       sealed: json["sealed"] == true,
+      lobbyReady: json["lobbyReady"] == true,
     );
   }
 }
@@ -88,6 +91,7 @@ class PublicView {
     required this.disconnects,
     required this.disconnectsToWin,
     required this.winner,
+    this.locked = false,
   });
 
   final String code;
@@ -103,6 +107,7 @@ class PublicView {
   final int disconnects;
   final int disconnectsToWin;
   final Winner? winner;
+  final bool locked;
 
   factory PublicView.fromJson(Map<String, dynamic> json) {
     final seats = <PublicSeat>[];
@@ -141,6 +146,7 @@ class PublicView {
       disconnects: _asInt(json["disconnects"]),
       disconnectsToWin: _asInt(json["disconnectsToWin"], fallback: 3),
       winner: rawWinner is Map ? Winner.fromJson(Map<String, dynamic>.from(rawWinner)) : null,
+      locked: json["locked"] == true,
     );
   }
 }
@@ -203,6 +209,36 @@ class NightChoice {
   }
 }
 
+class SilenceNote {
+  const SilenceNote({required this.seatId, required this.nickname, required this.text});
+
+  final String seatId;
+  final String nickname;
+  final String text;
+
+  factory SilenceNote.fromJson(Map<String, dynamic> json) {
+    return SilenceNote(
+      seatId: json["seatId"]?.toString() ?? "",
+      nickname: json["nickname"]?.toString() ?? "",
+      text: json["text"]?.toString() ?? "",
+    );
+  }
+}
+
+class PhaseTip {
+  const PhaseTip({required this.id, required this.text});
+
+  final String id;
+  final String text;
+
+  factory PhaseTip.fromJson(Map<String, dynamic> json) {
+    return PhaseTip(
+      id: json["id"]?.toString() ?? "",
+      text: json["text"]?.toString() ?? "",
+    );
+  }
+}
+
 class PrivateView {
   const PrivateView({
     required this.playerId,
@@ -222,6 +258,8 @@ class PrivateView {
     this.muted = false,
     this.sealCard,
     this.reclaimToken,
+    this.silenceChannel = const [],
+    this.tips = const [],
     required this.marks,
   });
 
@@ -242,6 +280,8 @@ class PrivateView {
   final bool muted;
   final String? sealCard;
   final String? reclaimToken;
+  final List<SilenceNote> silenceChannel;
+  final List<PhaseTip> tips;
   final List<String> marks;
 
   factory PrivateView.fromJson(Map<String, dynamic> json) {
@@ -264,6 +304,8 @@ class PrivateView {
       muted: json["muted"] == true,
       sealCard: json["sealCard"]?.toString(),
       reclaimToken: json["reclaimToken"]?.toString(),
+      silenceChannel: _maps(json["silenceChannel"]).map(SilenceNote.fromJson).toList(),
+      tips: _maps(json["tips"]).map(PhaseTip.fromJson).toList(),
       marks: _strings(json["marks"]),
     );
   }
