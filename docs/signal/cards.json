@@ -1,0 +1,197 @@
+{
+  "version": "signal-mvp-1",
+  "cards": [
+    {
+      "id": "jam_spear",
+      "name": "擾頻矛",
+      "kind": "strike",
+      "text": "指定一人。下一輪唔可以打武同道。",
+      "effect": "jam_play",
+      "needsTarget": true
+    },
+    {
+      "id": "pulse_sting",
+      "name": "斷脈刺",
+      "kind": "strike",
+      "text": "指定一人。加 1 個疑點。",
+      "effect": "add_mark",
+      "needsTarget": true
+    },
+    {
+      "id": "hush_blade",
+      "name": "靜噪刃",
+      "kind": "strike",
+      "text": "指定一人。下一輪唔可以打道。",
+      "effect": "hush_tool",
+      "needsTarget": true
+    },
+    {
+      "id": "echo_nail",
+      "name": "回聲釘",
+      "kind": "strike",
+      "text": "指定一人。加 1 疑點，下一晨報點名。",
+      "effect": "echo_pin",
+      "needsTarget": true
+    },
+    {
+      "id": "rift_arrow",
+      "name": "裂隙矢",
+      "kind": "strike",
+      "text": "指定一人。有防就拆防；冇防就加 1 裂隙。",
+      "effect": "rift",
+      "needsTarget": true
+    },
+    {
+      "id": "mask_fist",
+      "name": "遮罩拳",
+      "kind": "strike",
+      "text": "指定一人。拆走防槽。",
+      "effect": "strip_guard",
+      "needsTarget": true
+    },
+    {
+      "id": "scramble_whip",
+      "name": "錯頻鞭",
+      "kind": "strike",
+      "text": "指定一人。逼佢棄 1 張手牌。",
+      "effect": "force_discard",
+      "needsTarget": true
+    },
+    {
+      "id": "flash_awl",
+      "name": "頻閃錐",
+      "kind": "strike",
+      "text": "指定一人。加 1 疑點，下一輪唔可以裝防。",
+      "effect": "expose",
+      "needsTarget": true
+    },
+    {
+      "id": "quiet_shell",
+      "name": "靜默罩",
+      "kind": "guard",
+      "text": "擋下一次打你嘅武，然後碎。",
+      "effect": "block_strike",
+      "needsTarget": false
+    },
+    {
+      "id": "guise_film",
+      "name": "偽裝膜",
+      "kind": "guard",
+      "text": "擋下一次疑點，然後碎。",
+      "effect": "ignore_mark",
+      "needsTarget": false
+    },
+    {
+      "id": "prism_plate",
+      "name": "折射板",
+      "kind": "guard",
+      "text": "將下一次打你嘅武彈返打出嗰人，然後碎。",
+      "effect": "reflect",
+      "needsTarget": false
+    },
+    {
+      "id": "hollow_coat",
+      "name": "空殼衣",
+      "kind": "guard",
+      "text": "擋下一次針對你嘅道，然後碎。",
+      "effect": "block_intel",
+      "needsTarget": false
+    },
+    {
+      "id": "steady_ring",
+      "name": "穩頻環",
+      "kind": "guard",
+      "text": "唔會被逼棄牌。留到被拆。",
+      "effect": "steady",
+      "needsTarget": false
+    },
+    {
+      "id": "fog_cloak",
+      "name": "霧燈斗篷",
+      "kind": "guard",
+      "text": "被嗅探時只顯示霧。留到被拆。",
+      "effect": "fog",
+      "needsTarget": false
+    },
+    {
+      "id": "sniffer",
+      "name": "嗅探器",
+      "kind": "tool",
+      "text": "私下知道一個人嘅陣營。",
+      "effect": "sniff",
+      "needsTarget": true
+    },
+    {
+      "id": "rewrite_key",
+      "name": "覆寫鍵",
+      "kind": "tool",
+      "text": "移除一個人 1 個疑點。",
+      "effect": "rewrite",
+      "needsTarget": true
+    },
+    {
+      "id": "band_mirror",
+      "name": "頻段鏡",
+      "kind": "tool",
+      "text": "私下睇一個人嘅武槽同防槽。",
+      "effect": "mirror",
+      "needsTarget": true
+    },
+    {
+      "id": "replay_tape",
+      "name": "回放帶",
+      "kind": "tool",
+      "text": "私下睇一個人上一輪打出嘅牌。",
+      "effect": "replay",
+      "needsTarget": true
+    },
+    {
+      "id": "shortwave",
+      "name": "短波針",
+      "kind": "tool",
+      "text": "公開：一個人有冇武。",
+      "effect": "ping",
+      "needsTarget": true
+    },
+    {
+      "id": "spare_chip",
+      "name": "備用晶片",
+      "kind": "tool",
+      "text": "即抽 1 張。",
+      "effect": "draw1",
+      "needsTarget": false
+    },
+    {
+      "id": "bus_mute",
+      "name": "總線靜音",
+      "kind": "skill",
+      "text": "下一輪出牌，所有武都落空。",
+      "effect": "mute_all",
+      "needsTarget": false
+    },
+    {
+      "id": "beacon_call",
+      "name": "燈塔齊鳴",
+      "kind": "skill",
+      "text": "你抽 1。公開齊鳴。",
+      "effect": "chorus_draw",
+      "needsTarget": false
+    },
+    {
+      "id": "grey_hop",
+      "name": "灰線跳頻",
+      "kind": "skill",
+      "text": "你本輪唔會被表決斷線。",
+      "effect": "hop",
+      "needsTarget": false
+    },
+    {
+      "id": "ledger_nail",
+      "name": "記錄釘",
+      "kind": "skill",
+      "text": "私下睇牌庫頂三張。",
+      "effect": "peek_deck",
+      "needsTarget": false
+    }
+  ]
+}

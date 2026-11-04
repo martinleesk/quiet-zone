@@ -1,0 +1,103 @@
+{
+  "version": "signal-mvp-1",
+  "handLimit": 4,
+  "drawPerRound": 1,
+  "fastMs": 8000,
+  "maxRounds": 6,
+  "tie": "平票留線",
+  "chips": ["可疑", "留低", "冇聲", "對頻", "我過"],
+  "aiNames": ["霧港燈", "迴路", "低噪", "岸標"],
+  "factions": {
+    "lighthouse": "燈塔網",
+    "silence": "消音組",
+    "grey": "灰頻"
+  },
+  "composition": { "lighthouse": 3, "silence": 1, "grey": 1 },
+  "wins": {
+    "priority": ["grey", "silence", "lighthouse"],
+    "grey": { "kind": "survive_node", "node": 4, "text": "灰頻去到第 4 節點" },
+    "silence": { "kind": "disconnect_quota", "faction": "lighthouse", "quota": 2, "text": "燈塔網斷線滿 2" },
+    "lighthouse": { "kind": "clear_faction", "faction": "silence", "text": "表決揪走全部干擾源" }
+  },
+  "phases": [
+    { "id": "night", "label": "夜", "coach": "部署或者暗技", "ms": 20000 },
+    { "id": "morning", "label": "晨報", "coach": "睇事件條", "ms": 8000 },
+    { "id": "day", "label": "日", "coach": "揀一句", "ms": 75000 },
+    { "id": "play", "label": "出牌", "coach": "一武一道，可裝防", "ms": 45000 },
+    { "id": "vote", "label": "表決", "coach": "斷邊個線", "ms": 30000 },
+    { "id": "resolve", "label": "結算", "coach": "睇結果", "ms": 8000 },
+    { "id": "discard", "label": "棄牌", "coach": "棄到四張", "ms": 15000 }
+  ],
+  "roles": [
+    {
+      "id": "keeper",
+      "name": "守頻員",
+      "faction": "lighthouse",
+      "factionLabel": "燈塔網",
+      "skill": {
+        "id": "anchor",
+        "name": "穩頻錨",
+        "window": "vote",
+        "text": "表決時發動。若你會被斷線，取消一次。",
+        "effect": "anchor",
+        "needsTarget": false
+      }
+    },
+    {
+      "id": "finder",
+      "name": "測向員",
+      "faction": "lighthouse",
+      "factionLabel": "燈塔網",
+      "skill": {
+        "id": "bearing",
+        "name": "方位針",
+        "window": "night",
+        "text": "夜：私下知道一個人嘅陣營。",
+        "effect": "sniff",
+        "needsTarget": true
+      }
+    },
+    {
+      "id": "watch",
+      "name": "值更員",
+      "faction": "lighthouse",
+      "factionLabel": "燈塔網",
+      "skill": {
+        "id": "roster",
+        "name": "更表",
+        "window": "play",
+        "text": "出牌時發動。私下睇一個人嘅裝備。",
+        "effect": "mirror",
+        "needsTarget": true
+      }
+    },
+    {
+      "id": "jammer",
+      "name": "干擾手",
+      "faction": "silence",
+      "factionLabel": "消音組",
+      "skill": {
+        "id": "vein",
+        "name": "暗脈",
+        "window": "night",
+        "text": "夜：暗中俾一個人加 1 疑點。晨報只寫目標。",
+        "effect": "hidden_mark",
+        "needsTarget": true
+      }
+    },
+    {
+      "id": "remnant",
+      "name": "餘頻客",
+      "faction": "grey",
+      "factionLabel": "灰頻",
+      "skill": {
+        "id": "lurk",
+        "name": "潛行",
+        "window": "vote",
+        "text": "表決時發動。若你會被斷線，取消一次。",
+        "effect": "anchor",
+        "needsTarget": false
+      }
+    }
+  ]
+}

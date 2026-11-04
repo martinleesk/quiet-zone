@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="訊號牌">
+  <title>消音區 · 訊號牌</title>
+  <style>
+    :root {
+      --deep: #0e141b;
+      --card: #17202a;
+      --gold: #e7c27a;
+      --line: #3a4a5c;
+      --text: #e8eef4;
+      --muted: #9aa7b5;
+      --danger: #e07a7a;
+      --ai: #7eb6ff;
+      --tool: #8fbfa8;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--deep); color: var(--text); }
+    body {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      font: 15px/1.35 "PingFang HK", "PingFang TC", "Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+    button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulation; }
+    a { color: var(--gold); }
+    .bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 14px 6px;
+      background: #121a22;
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { color: var(--gold); font-weight: 800; letter-spacing: .08em; }
+    .phase { font-size: 13px; color: var(--muted); font-weight: 700; }
+    .coach { font-size: 26px; font-weight: 800; line-height: 1.05; }
+    .clock-wrap { display: flex; align-items: baseline; gap: 2px; min-width: 84px; }
+    .clock {
+      color: var(--gold);
+      font-variant-numeric: tabular-nums;
+      font-size: 64px;
+      font-weight: 800;
+      line-height: .8;
+    }
+    .clock.low { color: var(--danger); }
+    .unit { color: var(--gold); font-size: 12px; }
+    .clock.low + .unit { color: var(--danger); }
+    .spacer { flex: 1; }
+    .texty { border: 0; background: transparent; color: var(--gold); }
+    .meter { height: 6px; background: #243044; }
+    .meter > div { height: 100%; width: 100%; background: var(--gold); }
+    .meter.low > div { background: var(--danger); }
+    main { flex: 1; min-height: 0; display: flex; }
+    .table { flex: 1.3; min-width: 0; display: flex; flex-direction: column; padding: 8px 10px; gap: 8px; }
+    .seats { display: flex; gap: 8px; min-height: 0; }
+    .seat, .target {
+      flex: 1;
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: rgba(23, 32, 42, .88);
+      border-radius: 14px;
+      padding: 8px;
+      text-align: left;
+    }
+    .seat.me { border-color: var(--gold); }
+    .seat.off, .target:disabled { opacity: .45; }
+    .seat.head, .target { display: flex; flex-direction: column; gap: 2px; }
+    .who { display: flex; align-items: center; gap: 6px; font-weight: 800; }
+    .lamp {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #314050; flex: none;
+    }
+    .lamp.on { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
+    .badge {
+      background: var(--ai); color: var(--deep); font-size: 10px; font-weight: 800;
+      border-radius: 999px; padding: 0 5px;
+    }
+    .meta { color: var(--muted); font-size: 12px; }
+    .slot { font-size: 13px; font-weight: 700; }
+    .events { display: flex; gap: 6px; overflow: auto; min-height: 32px; }
+    .pill {
+      flex: none;
+      background: #243044;
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--gold);
+      font-weight: 700;
+    }
+    .log { color: var(--muted); font-size: 12px; margin-top: auto; white-space: pre-line; }
+    .dock {
+      flex: 1;
+      min-width: 280px;
+      max-width: 540px;
+      border-left: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      background: rgba(14, 20, 27, .94);
+    }
+    .you { padding: 8px 12px 0; }
+    .you strong { color: var(--gold); }
+    .hand { display: flex; flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+    .card {
+      width: 148px;
+      flex: none;
+      border-radius: 14px;
+      border: 2px solid var(--line);
+      background: #243044;
+      padding: 8px;
+      text-align: left;
+    }
+    .card.strike { border-color: var(--danger); }
+    .card.guard { border-color: var(--ai); }
+    .card.tool { border-color: var(--tool); }
+    .card.skill { border-color: var(--gold); }
+    .card.on { outline: 2px solid #fff; }
+    .card b { display: block; font-size: 18px; line-height: 1.15; }
+    .kind { font-size: 11px; letter-spacing: .12em; color: var(--gold); }
+    .card p { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
+    .actions, .targets { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 12px 12px; }
+    .verb, .target {
+      border: 0;
+      border-radius: 999px;
+      background: var(--gold);
+      color: var(--deep);
+      font-weight: 800;
+      padding: 10px 14px;
+      font-size: 16px;
+    }
+    .verb.ghost, .target.ghost { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
+    .target {
+      flex: 1 1 120px;
+      min-height: 64px;
+      border-radius: 16px;
+      font-size: 20px;
+    }
+    .note { color: var(--muted); font-size: 12px; padding: 0 12px 8px; }
+    .err {
+      margin: 0 12px 8px;
+      color: var(--danger);
+      font-weight: 800;
+    }
+    .winner { font-size: 28px; font-weight: 800; color: var(--gold); padding: 8px 12px; }
+    @media (orientation: portrait), (max-width: 800px) {
+      main { flex-direction: column; }
+      .dock { max-width: none; border-left: 0; border-top: 1px solid var(--line); }
+      .coach { font-size: 20px; }
+      .clock { font-size: 48px; }
+    }
+    @media (max-height: 430px) {
+      .coach { font-size: 20px; }
+      .clock { font-size: 48px; }
+      .card { width: 120px; }
+      .card p { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <div>
+      <div class="brand">訊號牌</div>
+      <div class="phase" id="phase">封鎖夜</div>
+      <div class="coach" id="coach">載入</div>
+    </div>
+    <div class="clock-wrap">
+      <div class="clock" id="clock">—</div>
+      <span class="unit" id="unit"></span>
+    </div>
+    <span class="spacer"></span>
+    <a href="../classic.html">舊試玩</a>
+    <button type="button" class="texty" id="restart">再來</button>
+  </header>
+  <div class="meter" id="meter"><div id="meter-fill"></div></div>
+  <main>
+    <section class="table">
+      <div class="seats" id="seats"></div>
+      <div class="events" id="events"></div>
+      <div class="log" id="log"></div>
+    </section>
+    <section class="dock" id="dock"></section>
+  </main>
+  <script src="engine.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

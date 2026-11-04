@@ -175,7 +175,15 @@ void main() {
   });
 
   test("phone trial page keeps the public codex and the engine bundle", () {
-    final html = File("../../docs/trial/index.html").readAsStringSync();
+    final index = File("../../docs/trial/index.html").readAsStringSync();
+    expect(index, contains("signal/index.html"));
+    expect(index, contains("新玩法"));
+    expect(index, contains("classic.html"));
+    final signal = File("../../docs/trial/signal/index.html").readAsStringSync();
+    expect(signal, contains("engine.js"));
+    expect(File("../../docs/trial/signal/engine.js").existsSync(), isTrue);
+
+    final html = File("../../docs/trial/classic.html").readAsStringSync();
     final app = File("../../docs/trial/app.js").readAsStringSync();
     expect(html, contains("engine.js"));
     expect(html, contains("zh-Hant"));
