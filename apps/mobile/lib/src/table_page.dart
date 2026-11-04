@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 
 import "ai_badge.dart";
+import "art.dart";
 import "game_controller.dart";
 import "protocol.dart";
 
@@ -60,98 +61,112 @@ class _TablePageState extends State<TablePage> {
           TextButton(onPressed: widget.controller.leave, child: const Text("離開")),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              children: [
-                ..._tips(mine),
-                Text(public.banner),
-                const SizedBox(height: 8),
-                Text(
-                  "第 ${public.round} 輪 · 第 ${public.night} 夜 · 失聯 ${public.disconnects}／${public.disconnectsToWin}",
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}",
-                ),
-                const SizedBox(height: 12),
-                if (public.winner != null) _WinnerCard(winner: public.winner!, reveal: public.reveal),
-                if (mine.remnants.isNotEmpty) ...[
+      body: _phaseFrame(
+        public.phase,
+        Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                children: [
+                  ..._tips(mine),
+                  Text(public.banner),
                   const SizedBox(height: 8),
-                  Text("回波殘片", style: Theme.of(context).textTheme.titleSmall),
-                  for (final remnant in mine.remnants)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text("${remnant.nickname} · ${remnant.factionLabel}"),
-                    ),
-                ],
-                if (mine.sealCard != null)
-                  Card(
-                    color: const Color(0xFF3A2A32),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(mine.sealCard!),
-                    ),
+                  Text(
+                    "第 ${public.round} 輪 · 第 ${public.night} 夜 · 失聯 ${public.disconnects}／${public.disconnectsToWin}",
                   ),
-                if (mine.role != null) _RoleCard(mine: mine),
-                if (public.pins.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text("釘選時間線", style: Theme.of(context).textTheme.titleSmall),
-                  for (final pin in public.pins)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(pin.unverified ? "待核實｜${pin.text}" : pin.text),
-                    ),
-                ],
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final seat in public.seats) _SeatChip(seat: seat, mine: mine.seatId == seat.id),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text("公開頻道", style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 6),
-                for (final line in public.log) Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(line),
-                ),
-                if (mine.inbox.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    "公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}",
+                  ),
                   const SizedBox(height: 12),
-                  Text("私人匣", style: Theme.of(context).textTheme.titleSmall),
+                  if (public.winner != null) _WinnerCard(winner: public.winner!, reveal: public.reveal),
+                  if (mine.remnants.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text("回波殘片", style: Theme.of(context).textTheme.titleSmall),
+                    for (final remnant in mine.remnants)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text("${remnant.nickname} · ${remnant.factionLabel}"),
+                      ),
+                  ],
+                  if (mine.sealCard != null)
+                    Card(
+                      color: const Color(0xFF3A2A32),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(mine.sealCard!),
+                      ),
+                    ),
+                  if (mine.role != null) _RoleCard(mine: mine),
+                  if (public.pins.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text("釘選時間線", style: Theme.of(context).textTheme.titleSmall),
+                    for (final pin in public.pins)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(pin.unverified ? "待核實｜${pin.text}" : pin.text),
+                      ),
+                  ],
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final seat in public.seats) _SeatChip(seat: seat, mine: mine.seatId == seat.id),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text("公開頻道", style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: 6),
-                  for (final line in mine.inbox)
+                  for (final line in public.log)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(line),
                     ),
+                  if (mine.inbox.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text("私人匣", style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 6),
+                    for (final line in mine.inbox)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(line),
+                      ),
+                  ],
+                  if (widget.controller.error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(widget.controller.error!, style: const TextStyle(color: Color(0xFFE07A7A))),
+                    ),
                 ],
-                if (widget.controller.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(widget.controller.error!, style: const TextStyle(color: Color(0xFFE07A7A))),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          SafeArea(
-            top: false,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 280),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                child: _actions(public, mine),
               ),
             ),
-          ),
-        ],
+            const Divider(height: 1),
+            ColoredBox(
+              color: const Color(0xFF0E141B),
+              child: SafeArea(
+                top: false,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                    child: _actions(public, mine),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _phaseFrame(String phase, Widget child) {
+    if (!ArtCatalog.showsBackdrop(phase)) {
+      return child;
+    }
+    return SceneBackdrop.fill(phase: phase, child: child);
   }
 
   List<Widget> _silenceChannel(PublicView public, PrivateView mine) {
@@ -518,23 +533,32 @@ class _RoleCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("你嘅身分", style: Theme.of(context).textTheme.labelLarge),
-            Text("${role.name} · ${role.factionLabel}", style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(role.skill),
-            if (mine.teammates.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text("組員：${mine.teammates.map((mate) => "${mate.nickname}（${mate.roleName}）").join("、")}"),
+            RolePortrait(role: role),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("你嘅身分", style: Theme.of(context).textTheme.labelLarge),
+                  Text("${role.name} · ${role.factionLabel}", style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 4),
+                  Text(role.skill),
+                  if (mine.teammates.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text("組員：${mine.teammates.map((mate) => "${mate.nickname}（${mate.roleName}）").join("、")}"),
+                    ),
+                  if (mine.marks.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text("你嘅標記：${mine.marks.join("、")}"),
+                    ),
+                ],
               ),
-            if (mine.marks.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text("你嘅標記：${mine.marks.join("、")}"),
-              ),
+            ),
           ],
         ),
       ),
