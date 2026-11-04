@@ -44,6 +44,12 @@ export interface PublicSeat {
   sealed: boolean;
 }
 
+export interface PublicPin {
+  id: string;
+  text: string;
+  unverified: boolean;
+}
+
 export interface PublicSnapshot {
   mode: "standard";
   phase: Phase;
@@ -54,6 +60,7 @@ export interface PublicSnapshot {
   composition: { lighthouse: number; silence: number; grey: number };
   seats: PublicSeat[];
   log: Array<{ text: string }>;
+  pins: PublicPin[];
   disconnects: number;
   disconnectsToWin: number;
   winner: null | { faction: Faction; factionLabel: string; reason: string };
@@ -68,6 +75,15 @@ export interface PrivateRole {
   skill: string;
 }
 
+export type SkillActionName = "pin" | "link" | "fake_flag" | "fake_plant";
+
+export interface SkillChoice {
+  action: SkillActionName;
+  label: string;
+  needsTarget: boolean;
+  needsText: boolean;
+}
+
 export interface PrivateSnapshot {
   playerId: string;
   seatId: string | null;
@@ -80,6 +96,10 @@ export interface PrivateSnapshot {
   teammates: Array<{ seatId: string; nickname: string; roleName: string }>;
   inbox: string[];
   nightActions: Array<{ action: NightActionName; label: string; needsTarget: boolean }>;
+  skillActions: SkillChoice[];
+  /** 影內應仲有一次匿名票可以用。 */
+  anonymousVote: boolean;
+  fakeCharges: number;
   votedSeatId: string | null;
   draft: string | null;
   marks: string[];

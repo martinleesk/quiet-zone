@@ -57,6 +57,22 @@ class Winner {
   }
 }
 
+class PinItem {
+  const PinItem({required this.id, required this.text, required this.unverified});
+
+  final String id;
+  final String text;
+  final bool unverified;
+
+  factory PinItem.fromJson(Map<String, dynamic> json) {
+    return PinItem(
+      id: json["id"]?.toString() ?? "",
+      text: json["text"]?.toString() ?? "",
+      unverified: json["unverified"] == true,
+    );
+  }
+}
+
 class PublicView {
   const PublicView({
     required this.code,
@@ -68,6 +84,7 @@ class PublicView {
     required this.composition,
     required this.seats,
     required this.log,
+    this.pins = const [],
     required this.disconnects,
     required this.disconnectsToWin,
     required this.winner,
@@ -82,6 +99,7 @@ class PublicView {
   final Composition composition;
   final List<PublicSeat> seats;
   final List<String> log;
+  final List<PinItem> pins;
   final int disconnects;
   final int disconnectsToWin;
   final Winner? winner;
@@ -102,6 +120,13 @@ class PublicView {
       }
     }
     final rawWinner = json["winner"];
+    final pins = <PinItem>[];
+    final rawPins = json["pins"];
+    if (rawPins is List) {
+      for (final pin in rawPins) {
+        if (pin is Map) pins.add(PinItem.fromJson(Map<String, dynamic>.from(pin)));
+      }
+    }
     return PublicView(
       code: json["code"]?.toString() ?? "",
       phase: json["phase"]?.toString() ?? "",
@@ -112,6 +137,7 @@ class PublicView {
       composition: Composition.fromJson(json["composition"]),
       seats: seats,
       log: log,
+      pins: pins,
       disconnects: _asInt(json["disconnects"]),
       disconnectsToWin: _asInt(json["disconnectsToWin"], fallback: 3),
       winner: rawWinner is Map ? Winner.fromJson(Map<String, dynamic>.from(rawWinner)) : null,
@@ -190,6 +216,9 @@ class PrivateView {
     required this.teammates,
     required this.inbox,
     required this.nightActions,
+    this.skillActions = const [],
+    this.anonymousVote = false,
+    this.fakeCharges = 0,
     required this.marks,
   });
 
@@ -204,6 +233,9 @@ class PrivateView {
   final List<Teammate> teammates;
   final List<String> inbox;
   final List<NightChoice> nightActions;
+  final List<NightChoice> skillActions;
+  final bool anonymousVote;
+  final int fakeCharges;
   final List<String> marks;
 
   factory PrivateView.fromJson(Map<String, dynamic> json) {
@@ -220,6 +252,9 @@ class PrivateView {
       teammates: _maps(json["teammates"]).map(Teammate.fromJson).toList(),
       inbox: _strings(json["inbox"]),
       nightActions: _maps(json["nightActions"]).map(NightChoice.fromJson).toList(),
+      skillActions: _maps(json["skillActions"]).map(NightChoice.fromJson).toList(),
+      anonymousVote: json["anonymousVote"] == true,
+      fakeCharges: _asInt(json["fakeCharges"]),
       marks: _strings(json["marks"]),
     );
   }

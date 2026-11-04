@@ -7,8 +7,10 @@ import type {
   NightCommand,
   Phase,
   PrivateSnapshot,
+  PublicPin,
   PublicSnapshot,
   RoleId,
+  SkillChoice,
   Step,
   StepError,
 } from "./types.js";
@@ -29,6 +31,17 @@ interface SeatState {
   /** Night index on which cover may succeed again. Success on N sets this to N+2. */
   coverReadyNight: number;
   inbox: string[];
+  usedSkillThisRound: boolean;
+  usedSkillLastRound: boolean;
+  pinnedThisRound: boolean;
+  linkedThisRound: boolean;
+  fakeCharges: number;
+  anonymousVoteUsed: boolean;
+}
+
+interface Ballot {
+  target: string | null;
+  anonymous: boolean;
 }
 
 const NIGHT_LABEL: Record<NightActionName, { label: string; needsTarget: boolean }> = {
@@ -80,10 +93,12 @@ export class GameEngine {
   private log: Array<{ text: string }> = [];
   private successfulDisconnects = 0;
   private winner: PublicSnapshot["winner"] = null;
-  private votes = new Map<string, string | null>();
+  private votes = new Map<string, Ballot>();
   private drafts = new Map<string, string>();
   private nightActions = new Map<string, NightCommand>();
   private chatCount = new Map<string, number>();
+  private pins: PublicPin[] = [];
+  private pinSeq = 0;
 
   constructor(opts: EngineOptions = {}) {
     this.rng = opts.rng ?? Math.random;
@@ -145,6 +160,7 @@ export class GameEngine {
       const roleId = roles[i]!;
       seat.roleId = roleId;
       seat.sweepFog = roleId === "plant" ? 1 : 0;
+      seat.fakeCharges = roleId === "decoy" ? RULES.skills.fakePerGame : 0;
     }
     this.phase = "boot";
     this.banner = "身分已私下派發。公開組成：燈塔網 ×7、消音組 ×3、灰頻 ×1。";
@@ -176,21 +192,110 @@ export class GameEngine {
     return ok();
   }
 
-  submitVote(playerId: string, targetSeatId: string | null): Step {
+  submitVote(playerId: string, targetSeatId: string | null, anonymous = false): Step {
     const seat = this.requireLiving(playerId);
     if (!seat.ok) return seat;
     if (this.phase !== "vote") return fail("wrong_phase", "而家唔係投票。");
+    if (anonymous) {
+      if (seat.seat.roleId !== "plant") return fail("not_your_skill", "只有影內應可以投匿名票。");
+      if (seat.seat.anonymousVoteUsed) return fail("anonymous_spent", "你本局匿名票已經用過。");
+    }
     if (targetSeatId == null) {
-      this.votes.set(playerId, null);
+      this.votes.set(playerId, { target: null, anonymous });
       if (this.autoAi) this.syncAiVotes();
       return ok();
     }
     const target = this.seatById(targetSeatId);
     if (!target || !target.alive) return fail("illegal_target", "票只可以投俾仍在場嘅人。");
     if (target.id === seat.seat.id) return fail("illegal_target", "唔可以投自己。");
-    this.votes.set(playerId, target.id);
+    this.votes.set(playerId, { target: target.id, anonymous });
     if (this.autoAi) this.syncAiVotes();
     return ok();
+  }
+
+  /** 線報員：釘一條公開殘訊。每輪燈亮一次，唔佔發言格。 */
+  submitPin(playerId: string, text: string): Step {
+    const seat = this.requireLiving(playerId);
+    if (!seat.ok) return seat;
+    if (this.phase !== "day_talk") return fail("wrong_phase", "釘選只可以喺燈亮做。");
+    if (seat.seat.roleId !== "tip") return fail("not_your_skill", "只有線報員可以釘選。");
+    if (this.isSealed(seat.seat)) return fail("sealed", "你被封口，呢回合只可以投票。");
+    if (seat.seat.pinnedThisRound) return fail("pin_spent", "你今輪已經釘過。");
+    const body = text.trim().slice(0, 80);
+    if (!body) return fail("empty", "釘選要有一句內容。");
+    this.pinSeq += 1;
+    this.pins.push({ id: `pin${this.pinSeq}`, text: body, unverified: false });
+    seat.seat.pinnedThisRound = true;
+    this.markSkill(seat.seat);
+    this.pushLog(`釘選｜${seat.seat.nickname}：${body}`);
+    return ok();
+  }
+
+  /** 通聯官：私下得知目標上回合用過主動技能未。唔講係邊種。 */
+  submitLink(playerId: string, targetSeatId: string): Step {
+    const seat = this.requireLiving(playerId);
+    if (!seat.ok) return seat;
+    if (this.phase !== "day_talk") return fail("wrong_phase", "核對通聯只可以喺燈亮做。");
+    if (seat.seat.roleId !== "link") return fail("not_your_skill", "只有通聯官可以核對。");
+    if (this.isSealed(seat.seat)) return fail("sealed", "你被封口，呢回合只可以投票。");
+    if (seat.seat.linkedThisRound) return fail("link_spent", "你今輪已經核對過。");
+    const target = this.seatById(targetSeatId);
+    if (!target || !target.alive) return fail("illegal_target", "目標要仍然在場。");
+    if (target.id === seat.seat.id) return fail("illegal_target", "唔可以核對自己。");
+    seat.seat.linkedThisRound = true;
+    this.markSkill(seat.seat);
+    const used = target.usedSkillLastRound ? "用過" : "未用過";
+    seat.seat.inbox.push(`通聯：${target.nickname} 上回合${used}主動技能。`);
+    return ok();
+  }
+
+  /**
+   * 假訊員：每局兩次。flag 將已釘殘訊標做待核實；plant 放一句來源未核。
+   * 燈亮同熄燈都可以用。公開唔會講係邊個放。
+   */
+  submitFake(playerId: string, input: { mode: "flag" | "plant"; pinId?: string; text?: string }): Step {
+    const seat = this.requireLiving(playerId);
+    if (!seat.ok) return seat;
+    if (this.phase !== "day_talk" && this.phase !== "night") return fail("wrong_phase", "假訊只可以喺燈亮或者熄燈放。");
+    if (seat.seat.roleId !== "decoy") return fail("not_your_skill", "只有假訊員可以投放假訊。");
+    if (this.phase === "day_talk" && this.isSealed(seat.seat)) return fail("sealed", "你被封口，呢回合只可以投票。");
+    if (seat.seat.fakeCharges <= 0) return fail("quota", "你本局假訊額度已用完。");
+    if (input.mode === "flag") {
+      const pin = this.pins.find((item) => item.id === input.pinId);
+      if (!pin) return fail("illegal_target", "要揀一條已經釘低嘅殘訊。");
+      if (pin.unverified) return fail("already_flagged", "呢條已經係待核實。");
+      pin.unverified = true;
+      this.pushLog("一條釘選被標做待核實。");
+    } else {
+      const body = (input.text ?? "").trim().slice(0, 80);
+      if (!body) return fail("empty", "假訊要有一句內容。");
+      this.pushLog(`來源未核：${body}`);
+    }
+    seat.seat.fakeCharges -= 1;
+    this.markSkill(seat.seat);
+    seat.seat.inbox.push(`假訊已投放。剩餘 ${seat.seat.fakeCharges} 次。`);
+    return ok();
+  }
+
+  /** In-game drop: the same seat becomes AI and keeps role plus private state. */
+  takeoverAsAi(playerId: string): Step {
+    const seat = this.seats.find((item) => item.playerId === playerId);
+    if (!seat) return fail("not_seated", "你未入座。");
+    if (this.phase === "lobby") return fail("not_started", "未開局。");
+    if (seat.isAi) return ok();
+    seat.isAi = true;
+    this.pushLog(`${seat.nickname} 斷線，AI 接管同一席。徽章保持。`);
+    if (this.autoAi && seat.alive) {
+      this.catchUpAi(seat);
+      seat.ready = true;
+    }
+    return ok();
+  }
+
+  removeLobbyPlayer(playerId: string): void {
+    if (this.phase !== "lobby") return;
+    const index = this.seats.findIndex((seat) => seat.playerId === playerId);
+    if (index >= 0) this.seats.splice(index, 1);
   }
 
   submitNight(playerId: string, command: NightCommand): Step {
@@ -306,6 +411,7 @@ export class GameEngine {
         sealed: this.isSealed(seat),
       })),
       log: this.log.map((entry) => ({ text: entry.text })),
+      pins: this.pins.map((pin) => ({ ...pin })),
       disconnects: this.successfulDisconnects,
       disconnectsToWin: RULES.silenceWin.successfulDisconnects,
       winner: this.winner ? { ...this.winner } : null,
@@ -337,7 +443,10 @@ export class GameEngine {
       teammates: seat ? this.teammatesFor(seat) : [],
       inbox: seat ? [...seat.inbox] : [],
       nightActions: seat && this.phase === "night" && seat.alive ? this.actionsFor(seat) : [],
-      votedSeatId: seat ? (this.votes.get(playerId) ?? null) : null,
+      skillActions: seat ? this.skillActionsFor(seat) : [],
+      anonymousVote: seat != null && seat.alive && seat.roleId === "plant" && !seat.anonymousVoteUsed && this.phase === "vote",
+      fakeCharges: seat?.fakeCharges ?? 0,
+      votedSeatId: seat ? (this.votes.get(playerId)?.target ?? null) : null,
       draft: seat ? (this.drafts.get(playerId) ?? null) : null,
       marks: seat ? [...seat.silenceMarks] : [],
     };
@@ -358,6 +467,12 @@ export class GameEngine {
       sweepFog: 0,
       coverReadyNight: 1,
       inbox: [],
+      usedSkillThisRound: false,
+      usedSkillLastRound: false,
+      pinnedThisRound: false,
+      linkedThisRound: false,
+      fakeCharges: 0,
+      anonymousVoteUsed: false,
     };
   }
 
@@ -379,6 +494,12 @@ export class GameEngine {
   }
 
   private beginDay(round: number): void {
+    for (const seat of this.seats) {
+      seat.usedSkillLastRound = seat.usedSkillThisRound;
+      seat.usedSkillThisRound = false;
+      seat.pinnedThisRound = false;
+      seat.linkedThisRound = false;
+    }
     this.round = round;
     this.beginPhase("day_talk");
     this.banner = `第 ${round} 輪燈亮。用短句就得，模板都可以。`;
@@ -387,6 +508,7 @@ export class GameEngine {
       this.pushLog(`封口生效：${seat.nickname} 呢回合只可以投票，唔可以發言。`);
     }
     this.aiTalk();
+    this.aiDaySkills();
   }
 
   private beginPhase(phase: Phase): void {
@@ -426,6 +548,47 @@ export class GameEngine {
     return (rotated.length > 0 ? rotated : pool).slice(0, limit);
   }
 
+  private aiDaySkills(): void {
+    if (!this.autoAi) return;
+    for (const seat of this.seats) {
+      if (!seat.isAi || !seat.alive || !seat.roleId || this.isSealed(seat)) continue;
+      if (seat.roleId === "tip") this.submitPin(seat.playerId, "我釘低一句：未見足夠失聯痕跡。");
+      if (seat.roleId === "link") {
+        const target = this.seats.find((item) => item.alive && item.id !== seat.id);
+        if (target) this.submitLink(seat.playerId, target.id);
+      }
+      if (seat.roleId === "decoy" && seat.fakeCharges > 0) {
+        const pin = this.pins.find((item) => !item.unverified);
+        if (pin) this.submitFake(seat.playerId, { mode: "flag", pinId: pin.id });
+        else this.submitFake(seat.playerId, { mode: "plant", text: "有人話呢席唔乾淨。" });
+      }
+    }
+  }
+
+  private catchUpAi(seat: SeatState): void {
+    if (this.phase === "day_talk") {
+      if (!this.isSealed(seat) && !(this.chatCount.get(seat.playerId) ?? 0)) {
+        const phrase = TALK_PHRASES[this.seatIndex(seat) % TALK_PHRASES.length]!;
+        this.submitChat(seat.playerId, phrase);
+      }
+      if (seat.roleId === "tip") this.submitPin(seat.playerId, "接管後釘低：我沿用原席觀察。");
+      if (seat.roleId === "link") {
+        const target = this.seats.find((item) => item.alive && item.id !== seat.id);
+        if (target) this.submitLink(seat.playerId, target.id);
+      }
+      if (seat.roleId === "decoy" && seat.fakeCharges > 0 && !seat.usedSkillThisRound) {
+        this.submitFake(seat.playerId, { mode: "plant", text: "接管席放低一句來源未核。" });
+      }
+    } else if (this.phase === "draft" && !this.drafts.has(seat.playerId) && !this.isSealed(seat)) {
+      this.submitDraft(seat.playerId, DRAFT_PHRASES[this.seatIndex(seat) % DRAFT_PHRASES.length] ?? "");
+    } else if (this.phase === "vote" && !this.votes.has(seat.playerId)) {
+      this.syncAiVotes();
+    } else if (this.phase === "night" && !this.nightActions.has(seat.playerId)) {
+      const command = this.scriptedAiNight(seat);
+      if (command) this.submitNight(seat.playerId, command);
+    }
+  }
+
   private aiNight(): void {
     if (!this.autoAi) return;
     for (const seat of this.seats) {
@@ -463,12 +626,16 @@ export class GameEngine {
     for (const seat of this.seats) {
       if (seat.isAi || !seat.alive) continue;
       if (!this.votes.has(seat.playerId)) continue;
-      humanTargets.push(this.votes.get(seat.playerId) ?? null);
+      humanTargets.push(this.votes.get(seat.playerId)?.target ?? null);
     }
     const leader = uniqueLeader(humanTargets);
     for (const seat of this.seats) {
       if (!seat.isAi || !seat.alive) continue;
-      this.votes.set(seat.playerId, leader == null || leader === seat.id ? null : leader);
+      const target = leader == null || leader === seat.id ? null : leader;
+      this.votes.set(seat.playerId, {
+        target,
+        anonymous: seat.roleId === "plant" && !seat.anonymousVoteUsed && target != null,
+      });
     }
   }
 
@@ -492,16 +659,26 @@ export class GameEngine {
   private fillMissingVotes(): void {
     for (const seat of this.seats) {
       if (!seat.alive) continue;
-      if (!this.votes.has(seat.playerId)) this.votes.set(seat.playerId, null);
+      if (!this.votes.has(seat.playerId)) this.votes.set(seat.playerId, { target: null, anonymous: false });
     }
   }
 
   private resolveVotes(): void {
     const ballots: Array<string | null> = [];
+    const attributed: string[] = [];
     for (const seat of this.seats) {
       if (!seat.alive) continue;
-      ballots.push(this.votes.get(seat.playerId) ?? null);
+      const ballot = this.votes.get(seat.playerId) ?? { target: null, anonymous: false };
+      ballots.push(ballot.target);
+      let name = seat.nickname;
+      if (ballot.anonymous && seat.roleId === "plant" && !seat.anonymousVoteUsed) {
+        seat.anonymousVoteUsed = true;
+        this.markSkill(seat);
+        name = "匿名";
+      }
+      attributed.push(`${name} → ${ballot.target ?? "棄權"}`);
     }
+    if (attributed.length > 0) this.pushLog(`票簿：${attributed.join("、")}`);
     const leader = uniqueLeader(ballots);
     this.votes.clear();
     if (!leader) {
@@ -540,6 +717,7 @@ export class GameEngine {
       if (!seat.alive || seat.roleId !== "cover") continue;
       const command = this.nightActions.get(seat.playerId);
       if (!command || command.action !== "cover" || !command.targetSeatId) continue;
+      this.markSkill(seat);
       if (this.nightNumber < seat.coverReadyNight) {
         seat.inbox.push("掩護冷卻中，今次唔會成功。");
         continue;
@@ -556,6 +734,7 @@ export class GameEngine {
       if (!seat.alive || seat.roleId !== "silencer") continue;
       const command = this.nightActions.get(seat.playerId);
       if (!command || command.action !== "disconnect" || !command.targetSeatId) continue;
+      this.markSkill(seat);
       const target = this.seatById(command.targetSeatId);
       if (!target || !target.alive) continue;
       if (shields.has(target.id)) {
@@ -574,6 +753,7 @@ export class GameEngine {
       if (!seat.alive || seat.roleId !== "sweep") continue;
       const command = this.nightActions.get(seat.playerId);
       if (!command || command.action !== "sweep" || !command.targetSeatId) continue;
+      this.markSkill(seat);
       const target = this.seatById(command.targetSeatId);
       if (!target || !target.roleId) continue;
       const silence = ROLES[target.roleId].faction === "silence";
@@ -588,7 +768,8 @@ export class GameEngine {
     for (const seat of this.seats) {
       if (!seat.alive || seat.roleId !== "warrant") continue;
       const command = this.nightActions.get(seat.playerId);
-      if (!command) continue;
+      if (!command || command.action === "skip") continue;
+      this.markSkill(seat);
       if (command.action === "mark" && command.targetSeatId) {
         if (!seat.silenceMarks.includes(command.targetSeatId)) seat.silenceMarks.push(command.targetSeatId);
         const target = this.seatById(command.targetSeatId);
@@ -660,6 +841,30 @@ export class GameEngine {
       if (target && this.factionOf(target) === "silence") count += 1;
     }
     return count;
+  }
+
+  private markSkill(seat: SeatState): void {
+    seat.usedSkillThisRound = true;
+  }
+
+  private skillActionsFor(seat: SeatState): SkillChoice[] {
+    if (!seat.alive || !seat.roleId) return [];
+    if (this.phase === "day_talk" && this.isSealed(seat)) return [];
+    const actions: SkillChoice[] = [];
+    if (this.phase === "day_talk" && seat.roleId === "tip" && !seat.pinnedThisRound) {
+      actions.push({ action: "pin", label: "釘選殘訊", needsTarget: false, needsText: true });
+    }
+    if (this.phase === "day_talk" && seat.roleId === "link" && !seat.linkedThisRound) {
+      actions.push({ action: "link", label: "核對通聯", needsTarget: true, needsText: false });
+    }
+    const fakeWindow = this.phase === "day_talk" || this.phase === "night";
+    if (fakeWindow && seat.roleId === "decoy" && seat.fakeCharges > 0) {
+      actions.push({ action: "fake_plant", label: "放來源未核", needsTarget: false, needsText: true });
+      if (this.pins.some((pin) => !pin.unverified)) {
+        actions.push({ action: "fake_flag", label: "標做待核實", needsTarget: true, needsText: false });
+      }
+    }
+    return actions;
   }
 
   private actionsFor(seat: SeatState): PrivateSnapshot["nightActions"] {

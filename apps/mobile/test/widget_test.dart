@@ -55,15 +55,23 @@ void main() {
   });
 
   testWidgets("table shows the AI badge, vote, night action, and ending", (tester) async {
-    await tester.pumpWidget(_app(_snapshot(phase: "day_talk", phaseLabel: "燈亮討論")));
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "day_talk",
+      phaseLabel: "燈亮討論",
+      pins: const [PinItem(id: "pin1", text: "真釘", unverified: true)],
+      skillActions: const [NightChoice(action: "pin", label: "釘選殘訊", needsTarget: false)],
+    )));
     expect(find.text("AI"), findsOneWidget);
     expect(find.text("燈亮討論"), findsOneWidget);
     expect(find.text("掩護員 · 燈塔網"), findsOneWidget);
+    expect(find.text("待核實｜真釘"), findsOneWidget);
+    expect(find.text("釘選殘訊"), findsOneWidget);
 
-    await tester.pumpWidget(_app(_snapshot(phase: "vote", phaseLabel: "投票隔離")));
+    await tester.pumpWidget(_app(_snapshot(phase: "vote", phaseLabel: "投票隔離", anonymousVote: true)));
     await tester.pump();
     expect(find.text("確認投票"), findsOneWidget);
     expect(find.text("棄權"), findsOneWidget);
+    expect(find.text("匿名票（每局一次）"), findsOneWidget);
     expect(find.text("AI"), findsOneWidget);
 
     await tester.pumpWidget(_app(_snapshot(
@@ -100,6 +108,9 @@ GameSnapshot _snapshot({
   required String phaseLabel,
   Winner? winner,
   List<NightChoice> nightActions = const [],
+  List<NightChoice> skillActions = const [],
+  List<PinItem> pins = const [],
+  bool anonymousVote = false,
 }) {
   return GameSnapshot(
     public: PublicView(
@@ -115,6 +126,7 @@ GameSnapshot _snapshot({
         PublicSeat(id: "s2", nickname: "霧港燈", isAi: true, alive: true, sealed: false),
       ],
       log: const ["公開組成已廣播。"],
+      pins: pins,
       disconnects: 0,
       disconnectsToWin: 3,
       winner: winner,
@@ -137,6 +149,8 @@ GameSnapshot _snapshot({
       teammates: const [],
       inbox: const [],
       nightActions: nightActions,
+      skillActions: skillActions,
+      anonymousVote: anonymousVote,
       marks: const [],
     ),
   );

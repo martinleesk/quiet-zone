@@ -34,7 +34,18 @@ class GameController extends ChangeNotifier {
 
   void draft(String text) => _send({"type": "draft", "text": text});
 
-  void vote(String? targetSeatId) => _send({"type": "vote", "targetSeatId": targetSeatId});
+  void vote(String? targetSeatId, {bool anonymous = false}) {
+    _send({"type": "vote", "targetSeatId": targetSeatId, "anonymous": anonymous});
+  }
+
+  void skill(String action, {String? text, String? targetId}) {
+    _send({
+      "type": "skill",
+      "action": action,
+      if (text != null) "text": text,
+      if (targetId != null) "targetId": targetId,
+    });
+  }
 
   void night(String action, {String? targetSeatId}) {
     _send({
