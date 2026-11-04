@@ -1,5 +1,5 @@
 import { RULES } from "../config/rules.js";
-import { AI_NICKNAMES, DRAFT_PHRASES, TALK_PHRASES } from "./phrases.js";
+import { AI_NICKNAMES, DRAFT_PHRASES, PHASE_TIPS, SILENCE_TEMPLATES, TALK_PHRASES } from "./phrases.js";
 import { FACTION_LABEL, PHASE_LABEL, ROLES, STANDARD_DEAL } from "./roles.js";
 import type {
   Faction,
@@ -38,6 +38,7 @@ interface SeatState {
   fakeCharges: number;
   anonymousVoteUsed: boolean;
   reclaimToken: string | null;
+  lobbyReady: boolean;
 }
 
 interface Ballot {
@@ -101,6 +102,8 @@ export class GameEngine {
   private pins: PublicPin[] = [];
   private pinSeq = 0;
   private tokenSeq = 0;
+  private silenceNotes: Array<{ seatId: string; nickname: string; text: string }> = [];
+  private silenceSent = new Map<string, number>();
 
   constructor(opts: EngineOptions = {}) {
     this.rng = opts.rng ?? Math.random;
@@ -151,8 +154,28 @@ export class GameEngine {
    * Deal roles and enter Boot. `deal` is seat-ordered and only for tests / the scripted demo.
    * Clients never receive the full deal.
    */
-  start(deal?: readonly RoleId[]): Step {
+  setLobbyReady(playerId: string, ready: boolean): Step {
+    if (this.phase !== "lobby") return fail("locked", "房間已鎖定，唔可以再改準備。");
+    const seat = this.seats.find((item) => item.playerId === playerId);
+    if (!seat) return fail("not_seated", "你未入座。");
+    if (seat.isAi) return fail("not_your_skill", "AI 席唔使準備。");
+    seat.lobbyReady = ready;
+    return ok();
+  }
+
+  /**
+   * Host start. When `enforceLobbyReady` is set, every seated human must be ready.
+   * Empty seats are filled with AI, then the room locks at Boot.
+   */
+  start(deal?: readonly RoleId[], opts?: { enforceLobbyReady?: boolean }): Step {
     if (this.phase !== "lobby") return fail("already_started", "局已開始。");
+    if (opts?.enforceLobbyReady) {
+      const humans = this.seats.filter((seat) => !seat.isAi);
+      if (humans.length === 0 || humans.some((seat) => !seat.lobbyReady)) {
+        return fail("not_ready", "未齊人準備好，未可以開局。");
+      }
+    }
+    this.fillWithAi();
     if (this.seats.length !== RULES.seatCount) {
       return fail("need_seats", `要 ${RULES.seatCount} 席先可以開局。`);
     }
@@ -166,6 +189,7 @@ export class GameEngine {
       seat.fakeCharges = roleId === "decoy" ? RULES.skills.fakePerGame : 0;
     }
     this.phase = "boot";
+    for (const seat of this.seats) seat.ready = false;
     this.banner = "身分已私下派發。公開組成：燈塔網 ×7、消音組 ×3、灰頻 ×1。";
     this.pushLog("標準 Mode 開局。公開組成：燈塔網 ×7、消音組 ×3、灰頻 ×1。你只會收到自己嘅身分。");
     this.markAiReady();
@@ -370,6 +394,23 @@ export class GameEngine {
     return ok();
   }
 
+  /** 消音組夜訊。必須係模板原句，而且唔會寫入公開頻道。 */
+  submitSilence(playerId: string, text: string): Step {
+    const seat = this.requireLiving(playerId);
+    if (!seat.ok) return seat;
+    if (this.phase !== "night") return fail("wrong_phase", "夜訊只可以喺熄燈送。");
+    if (this.factionOf(seat.seat) !== "silence") return fail("not_your_skill", "只有消音組可以入夜訊。");
+    const body = text.trim();
+    if (!SILENCE_TEMPLATES.includes(body as (typeof SILENCE_TEMPLATES)[number])) {
+      return fail("template_only", "夜訊只可以用模板短句。");
+    }
+    const sent = this.silenceSent.get(playerId) ?? 0;
+    if (sent >= 2) return fail("limit", "你今夜夜訊已夠。");
+    this.silenceSent.set(playerId, sent + 1);
+    this.silenceNotes.push({ seatId: seat.seat.id, nickname: seat.seat.nickname, text: body });
+    return ok();
+  }
+
   setReady(playerId: string): Step {
     const seat = this.seats.find((item) => item.playerId === playerId);
     if (!seat) return fail("not_seated", "你未入座。");
@@ -418,6 +459,7 @@ export class GameEngine {
         return;
       case "resolve":
         this.nightNumber += 1;
+        this.silenceSent.clear();
         this.beginPhase("night");
         this.aiNight();
         return;
@@ -455,6 +497,7 @@ export class GameEngine {
         isAi: seat.isAi,
         alive: seat.alive,
         sealed: this.isSealed(seat),
+        lobbyReady: seat.lobbyReady,
       })),
       log: this.log.map((entry) => ({ text: entry.text })),
       pins: this.pins.map((pin) => ({ ...pin })),
@@ -462,6 +505,7 @@ export class GameEngine {
       disconnectsToWin: RULES.silenceWin.successfulDisconnects,
       winner: this.winner ? { ...this.winner } : null,
       hostSeatId: this.seats[0]?.id ?? null,
+      locked: this.phase !== "lobby",
     };
   }
 
@@ -476,7 +520,7 @@ export class GameEngine {
       alive: seat?.alive ?? false,
       canSpeak: seat != null && seat.alive && !this.isSealed(seat) && (this.phase === "day_talk" || this.phase === "draft"),
       canVote: seat != null && seat.alive && this.phase === "vote",
-      ready: seat?.ready ?? false,
+      ready: seat == null ? false : this.phase === "lobby" ? seat.lobbyReady : seat.ready,
       role: role
         ? {
             id: role.id,
@@ -500,6 +544,8 @@ export class GameEngine {
       votedSeatId: seat ? (this.votes.get(playerId)?.target ?? null) : null,
       draft: seat ? (this.drafts.get(playerId) ?? null) : null,
       marks: seat ? [...seat.silenceMarks] : [],
+      silenceChannel: seat && this.factionOf(seat) === "silence" ? this.silenceNotes.map((note) => ({ ...note })) : [],
+      tips: seat ? this.tipsFor(seat) : [],
     };
   }
 
@@ -525,6 +571,7 @@ export class GameEngine {
       fakeCharges: 0,
       anonymousVoteUsed: false,
       reclaimToken: null,
+      lobbyReady: false,
     };
   }
 
@@ -659,9 +706,12 @@ export class GameEngine {
       this.submitDraft(seat.playerId, DRAFT_PHRASES[this.seatIndex(seat) % DRAFT_PHRASES.length] ?? "");
     } else if (this.phase === "vote" && !this.votes.has(seat.playerId)) {
       this.syncAiVotes();
-    } else if (this.phase === "night" && !this.nightActions.has(seat.playerId)) {
-      const command = this.scriptedAiNight(seat);
-      if (command) this.submitNight(seat.playerId, command);
+    } else if (this.phase === "night") {
+      if (!this.nightActions.has(seat.playerId)) {
+        const command = this.scriptedAiNight(seat);
+        if (command) this.submitNight(seat.playerId, command);
+      }
+      this.postAiSilence(seat);
     }
   }
 
@@ -671,7 +721,15 @@ export class GameEngine {
       if (!seat.isAi || !seat.alive || !seat.roleId) continue;
       const command = this.scriptedAiNight(seat);
       if (command) this.submitNight(seat.playerId, command);
+      this.postAiSilence(seat);
     }
+  }
+
+  private postAiSilence(seat: SeatState): void {
+    if (!this.autoAi || this.phase !== "night") return;
+    if (!seat.isAi || !seat.alive || this.factionOf(seat) !== "silence") return;
+    const line = SILENCE_TEMPLATES[this.seatIndex(seat) % SILENCE_TEMPLATES.length]!;
+    this.submitSilence(seat.playerId, line);
   }
 
   private scriptedAiNight(seat: SeatState): NightCommand | null {
@@ -917,6 +975,17 @@ export class GameEngine {
       if (target && this.factionOf(target) === "silence") count += 1;
     }
     return count;
+  }
+
+  private tipsFor(seat: SeatState): Array<{ id: string; text: string }> {
+    const tips: Array<{ id: string; text: string }> = [];
+    if (this.phase === "day_talk") tips.push({ ...PHASE_TIPS.day_talk });
+    if (this.phase === "vote") tips.push({ ...PHASE_TIPS.vote });
+    if (this.phase === "night") tips.push({ ...PHASE_TIPS.night });
+    if (seat.roleId === "warrant" && (this.phase === "day_talk" || this.phase === "draft" || this.phase === "night")) {
+      tips.push({ ...PHASE_TIPS.grey_marks });
+    }
+    return tips;
   }
 
   private markSkill(seat: SeatState): void {

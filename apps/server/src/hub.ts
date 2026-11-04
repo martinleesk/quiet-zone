@@ -108,6 +108,7 @@ export class RoomHub {
       targetId?: string;
       marked?: boolean;
       token?: string;
+      ready?: boolean;
     };
     switch (msg.type) {
       case "create_room":
@@ -157,7 +158,14 @@ export class RoomHub {
           });
         });
         return;
+      case "silence":
+        this.act(playerId, (engine) => engine.submitSilence(playerId, String(msg.text ?? "")));
+        return;
       case "ready":
+        if (this.roomOf(playerId)?.engine.getPhase() === "lobby") {
+          this.act(playerId, (engine) => engine.setLobbyReady(playerId, msg.ready !== false));
+          return;
+        }
         this.act(playerId, (engine) => engine.setReady(playerId), true);
         return;
       default:
@@ -212,8 +220,7 @@ export class RoomHub {
       this.fail(playerId, "not_host", "只有房主可以開始。");
       return;
     }
-    room.engine.fillWithAi();
-    const started = room.engine.start();
+    const started = room.engine.start(undefined, { enforceLobbyReady: true });
     if (!started.ok) {
       this.fail(playerId, started.code, started.message);
       return;

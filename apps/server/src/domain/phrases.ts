@@ -15,6 +15,22 @@ export const DRAFT_PHRASES = [
   "我未有新料，保持觀望。",
 ] as const;
 
+/** Night channel for 消音組 only. Free text is rejected. */
+export const SILENCE_TEMPLATES = [
+  "今夜我建議失聯一個燈塔席。",
+  "可能有掩護，換一個目標。",
+  "我跟組內嘅選擇。",
+  "今輪跳過，唔好暴露。",
+  "小心灰頻，唔好亂送頭。",
+] as const;
+
+export const PHASE_TIPS = {
+  day_talk: { id: "day_talk", text: "燈亮用短句就得。撳準備好先會去草稿。" },
+  vote: { id: "vote", text: "投一個人，或者棄權。平票就流局，唔會隔離。" },
+  night: { id: "night", text: "熄燈先交行動。冇技能可以跳過。" },
+  grey_marks: { id: "grey_marks", text: "標記只得你知。正確標中兩名消音，灰頻可以獨贏。" },
+} as const;
+
 export const AI_NICKNAMES = [
   "霧港燈",
   "靜默鍵",

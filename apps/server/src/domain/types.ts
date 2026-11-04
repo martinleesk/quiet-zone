@@ -42,6 +42,7 @@ export interface PublicSeat {
   isAi: boolean;
   alive: boolean;
   sealed: boolean;
+  lobbyReady: boolean;
 }
 
 export interface PublicPin {
@@ -65,6 +66,8 @@ export interface PublicSnapshot {
   disconnectsToWin: number;
   winner: null | { faction: Faction; factionLabel: string; reason: string };
   hostSeatId: string | null;
+  /** True once Boot has started. No more joins. */
+  locked: boolean;
 }
 
 export interface PrivateRole {
@@ -109,6 +112,9 @@ export interface PrivateSnapshot {
   votedSeatId: string | null;
   draft: string | null;
   marks: string[];
+  /** 消音組夜訊。其他陣營永遠係空陣列。 */
+  silenceChannel: Array<{ seatId: string; nickname: string; text: string }>;
+  tips: Array<{ id: string; text: string }>;
 }
 
 export interface StepResult {

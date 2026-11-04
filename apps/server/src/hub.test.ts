@@ -58,6 +58,8 @@ test("private room: join by code, AI fillers keep a permanent badge, roles stay 
   assert.ok(before && before.type === "state");
   assert.equal(before.public.phase, "lobby");
 
+  hub.handle("host", { type: "ready" });
+  hub.handle("guest", { type: "ready" });
   hub.handle("host", { type: "start_game" });
   const started = lastState(seenA);
   const guestView = lastState(seenB);
