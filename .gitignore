@@ -1,0 +1,40 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*~
+
+# Node / Bun
+node_modules/
+dist/
+build/
+.coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+npm-debug.log*
+yarn-error.log*
+bun.lockb
+
+# Flutter / Dart
+apps/mobile/.dart_tool/
+apps/mobile/.packages
+apps/mobile/.pub-cache/
+apps/mobile/.pub/
+apps/mobile/build/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/**/*.iml
+apps/mobile/.android/
+apps/mobile/.ios/
+**/Generated.xcconfig
+**/flutter_export_environment.sh
+
+# Logs / temp
+*.log
+tmp/
+temp/
+.cache/
