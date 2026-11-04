@@ -2,35 +2,58 @@ import "package:flutter/material.dart";
 
 import "protocol.dart";
 
-/// Original art slots for the Flutter client.
-///
-/// The 2D painterly pack is not shipped. Drop stylized 3D renders (women and
-/// men) on the paths below, register them in pubspec.yaml, then set [installed].
+/// Stylized 3D busts and phase scenes. Gender lock is documented in ART.md.
 class ArtCatalog {
   const ArtCatalog._();
 
-  /// Flip together with the pubspec `assets:` block. See ART.md.
-  static final bool installed = false;
+  /// Off only if the pubspec asset list is removed with the files.
+  static final bool installed = true;
 
   static const warrant = "assets/art/roles/warrant.jpg";
   static const silencer = "assets/art/roles/silencer.jpg";
+  static const tip = "assets/art/roles/tip.jpg";
+  static const cover = "assets/art/roles/cover.jpg";
+  static const decoy = "assets/art/roles/decoy.jpg";
+  static const sweep = "assets/art/roles/sweep.jpg";
+  static const echo = "assets/art/roles/echo.jpg";
+  static const link = "assets/art/roles/link.jpg";
+  static const plant = "assets/art/roles/plant.jpg";
+  static const civilianF = "assets/art/roles/civilian_f.jpg";
+  static const civilianM = "assets/art/roles/civilian_m.jpg";
   static const dayTalk = "assets/art/scenes/day_talk.jpg";
   static const night = "assets/art/scenes/night.jpg";
   static const styleBoard = "assets/art/ref/style-board.jpg";
 
-  /// Every reserved file. The style board is reference only and is not drawn.
+  /// In-game files plus the reference board, which is not drawn.
   static const reservedFiles = <String>[
     warrant,
     silencer,
+    tip,
+    cover,
+    decoy,
+    sweep,
+    echo,
+    link,
+    plant,
+    civilianF,
+    civilianM,
     dayTalk,
     night,
     styleBoard,
   ];
 
-  /// RoleId → bust. Only 孤證客 and 消音手 have a slot in this pack.
+  /// RoleId → default bust. Civilian maps to the woman; [bustFor] may swap in the man.
   static const roleBusts = <String, String>{
     "warrant": warrant,
     "silencer": silencer,
+    "tip": tip,
+    "cover": cover,
+    "decoy": decoy,
+    "sweep": sweep,
+    "echo": echo,
+    "link": link,
+    "plant": plant,
+    "civilian": civilianF,
   };
 
   static const lighthouse = Color(0xFF3ECFBF);
@@ -45,9 +68,26 @@ class ArtCatalog {
   static const nightTone = SceneTone(glow: nightGlow, scenic: true);
   static const plainTone = SceneTone(glow: Color(0xFF17202A), scenic: false);
 
-  static String? bustFor(String roleId) {
+  static String? bustFor(String roleId, {String? seatId}) {
     if (!installed) return null;
+    if (roleId == "civilian") return _civilianUsesMale(seatId) ? civilianM : civilianF;
     return roleBusts[roleId];
+  }
+
+  /// Odd seat-code sum picks the male civilian. No seat stays on the woman.
+  static bool _civilianUsesMale(String? seatId) {
+    if (seatId == null || seatId.isEmpty) return false;
+    var sum = 0;
+    for (final unit in seatId.codeUnits) {
+      sum += unit;
+    }
+    return sum.isOdd;
+  }
+
+  static Alignment bustAlignment(String asset) {
+    if (asset == civilianF) return const Alignment(-0.72, -0.15);
+    if (asset == civilianM) return const Alignment(0.55, -0.1);
+    return Alignment.topCenter;
   }
 
   /// File reserved for this phase, even while the pack is not installed.
@@ -145,7 +185,7 @@ class SceneBackdrop extends StatelessWidget {
             Image(
               image: AssetImage(asset),
               fit: BoxFit.cover,
-              alignment: Alignment.topCenter,
+              alignment: Alignment.center,
               errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
             ),
           DecoratedBox(
@@ -175,15 +215,16 @@ class SceneBackdrop extends StatelessWidget {
   }
 }
 
-/// Bust for warrant / silencer once the pack is installed; faction circle otherwise.
+/// 3D bust for a known RoleId. Unknown ids keep the faction circle.
 class RolePortrait extends StatelessWidget {
-  const RolePortrait({super.key, required this.role});
+  const RolePortrait({super.key, required this.role, this.seatId});
 
   final PrivateRole role;
+  final String? seatId;
 
   @override
   Widget build(BuildContext context) {
-    final asset = ArtCatalog.bustFor(role.id);
+    final asset = ArtCatalog.bustFor(role.id, seatId: seatId);
     final placeholder = _PlaceholderPortrait(role: role);
     if (asset == null) return placeholder;
     return ClipRRect(
@@ -195,7 +236,7 @@ class RolePortrait extends StatelessWidget {
         child: Image(
           image: AssetImage(asset),
           fit: BoxFit.cover,
-          alignment: Alignment.topCenter,
+          alignment: ArtCatalog.bustAlignment(asset),
           errorBuilder: (context, error, stackTrace) => placeholder,
         ),
       ),

@@ -536,7 +536,7 @@ class _RoleCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            RolePortrait(role: role),
+            RolePortrait(role: role, seatId: mine.seatId),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

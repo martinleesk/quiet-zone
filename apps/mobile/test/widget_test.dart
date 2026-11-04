@@ -49,15 +49,37 @@ void main() {
     expect(snapshot.public.seats.every((seat) => seat.toString().contains("silencer")), isFalse);
   });
 
-  test("art catalog reserves warrant and silencer only", () {
-    expect(ArtCatalog.installed, isFalse);
-    expect(ArtCatalog.roleBusts.keys.toList(), ["warrant", "silencer"]);
+  test("art catalog maps every standard role bust", () {
+    expect(ArtCatalog.installed, isTrue);
+    expect(ArtCatalog.roleBusts.keys.toSet(), {
+      "warrant",
+      "silencer",
+      "tip",
+      "cover",
+      "decoy",
+      "sweep",
+      "echo",
+      "link",
+      "plant",
+      "civilian",
+    });
     expect(ArtCatalog.roleBusts["warrant"], ArtCatalog.warrant);
     expect(ArtCatalog.roleBusts["silencer"], ArtCatalog.silencer);
-    expect(ArtCatalog.roleBusts.containsKey("cover"), isFalse);
-    expect(ArtCatalog.bustFor("warrant"), isNull);
-    expect(ArtCatalog.bustFor("silencer"), isNull);
-    expect(ArtCatalog.bustFor("cover"), isNull);
+    expect(ArtCatalog.roleBusts["tip"], ArtCatalog.tip);
+    expect(ArtCatalog.roleBusts["cover"], ArtCatalog.cover);
+    expect(ArtCatalog.roleBusts["decoy"], ArtCatalog.decoy);
+    expect(ArtCatalog.roleBusts["sweep"], ArtCatalog.sweep);
+    expect(ArtCatalog.roleBusts["echo"], ArtCatalog.echo);
+    expect(ArtCatalog.roleBusts["link"], ArtCatalog.link);
+    expect(ArtCatalog.roleBusts["plant"], ArtCatalog.plant);
+    expect(ArtCatalog.roleBusts["civilian"], ArtCatalog.civilianF);
+    expect(ArtCatalog.bustFor("warrant"), ArtCatalog.warrant);
+    expect(ArtCatalog.bustFor("silencer"), ArtCatalog.silencer);
+    expect(ArtCatalog.bustFor("cover"), ArtCatalog.cover);
+    expect(ArtCatalog.bustFor("civilian"), ArtCatalog.civilianF);
+    expect(ArtCatalog.bustFor("civilian", seatId: "s1"), ArtCatalog.civilianF);
+    expect(ArtCatalog.bustFor("civilian", seatId: "s2"), ArtCatalog.civilianM);
+    expect(ArtCatalog.bustFor("nope"), isNull);
     expect(ArtCatalog.reservedScene("home"), ArtCatalog.dayTalk);
     expect(ArtCatalog.reservedScene("lobby"), ArtCatalog.dayTalk);
     expect(ArtCatalog.reservedScene("day_talk"), ArtCatalog.dayTalk);
@@ -65,8 +87,10 @@ void main() {
     expect(ArtCatalog.reservedScene("night"), ArtCatalog.night);
     expect(ArtCatalog.reservedScene("vote"), isNull);
     expect(ArtCatalog.reservedScene("boot"), isNull);
-    expect(ArtCatalog.sceneFor("day_talk"), isNull);
-    expect(ArtCatalog.sceneFor("night"), isNull);
+    expect(ArtCatalog.sceneFor("day_talk"), ArtCatalog.dayTalk);
+    expect(ArtCatalog.sceneFor("draft"), ArtCatalog.dayTalk);
+    expect(ArtCatalog.sceneFor("night"), ArtCatalog.night);
+    expect(ArtCatalog.sceneFor("vote"), isNull);
     expect(ArtCatalog.showsBackdrop("day_talk"), isTrue);
     expect(ArtCatalog.showsBackdrop("draft"), isTrue);
     expect(ArtCatalog.showsBackdrop("night"), isTrue);
@@ -78,6 +102,7 @@ void main() {
     expect(ArtCatalog.factionColor("silence"), ArtCatalog.silence);
     expect(ArtCatalog.factionColor("grey"), ArtCatalog.grey);
     expect(ArtCatalog.reservedFiles, contains(ArtCatalog.styleBoard));
+    expect(ArtCatalog.reservedFiles, contains(ArtCatalog.civilianM));
   });
 
   testWidgets("home offers a private room", (tester) async {
@@ -98,7 +123,7 @@ void main() {
     expect(find.text("開始封鎖（AI 補滿 11 席）"), findsOneWidget);
   });
 
-  testWidgets("role reveal stays on faction placeholders until busts are installed", (tester) async {
+  testWidgets("role reveal shows the 3D bust and keeps an unknown role on the faction circle", (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -113,13 +138,11 @@ void main() {
         skill: "私密標記消音組。",
       ),
     )));
-    expect(find.byKey(const Key("role-placeholder")), findsOneWidget);
-    expect(find.text("孤"), findsOneWidget);
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.warrant}")), findsOneWidget);
+    expect(find.byKey(const Key("role-placeholder")), findsNothing);
     expect(find.text("孤證客 · 灰頻"), findsOneWidget);
     expect(find.text("我睇完身分"), findsOneWidget);
-    expect(find.byKey(const Key("role-bust:${ArtCatalog.warrant}")), findsNothing);
     expect(find.byKey(const Key("scene-boot")), findsNothing);
-    _expectFaction(tester, ArtCatalog.grey);
 
     await tester.pumpWidget(_app(_snapshot(
       phase: "night",
@@ -133,29 +156,52 @@ void main() {
       ),
     )));
     await tester.pump();
-    expect(find.byKey(const Key("role-placeholder")), findsOneWidget);
-    expect(find.text("消"), findsOneWidget);
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.silencer}")), findsOneWidget);
     expect(find.byKey(const Key("scene-night")), findsOneWidget);
-    expect(find.byKey(const Key("role-bust:${ArtCatalog.silencer}")), findsNothing);
-    _expectFaction(tester, ArtCatalog.silence);
 
     await tester.pumpWidget(_app(_snapshot(phase: "day_talk", phaseLabel: "燈亮討論")));
     await tester.pump();
     expect(find.byKey(const Key("scene-day_talk")), findsOneWidget);
-    expect(find.text("掩"), findsOneWidget);
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.cover}")), findsOneWidget);
     expect(find.text("送出"), findsOneWidget);
-    _expectFaction(tester, ArtCatalog.lighthouse);
+    expect(find.text("掩護員 · 燈塔網"), findsOneWidget);
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "day_talk",
+      phaseLabel: "燈亮討論",
+      role: const PrivateRole(
+        id: "civilian",
+        name: "燈塔閒職",
+        faction: "lighthouse",
+        factionLabel: "燈塔網",
+        skill: "無主動技能。",
+      ),
+    )));
+    await tester.pump();
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.civilianF}")), findsOneWidget);
 
     await tester.pumpWidget(_app(_snapshot(phase: "draft", phaseLabel: "私人草稿")));
     await tester.pump();
     expect(find.byKey(const Key("scene-draft")), findsOneWidget);
     expect(find.text("私人草稿。留空都得。"), findsOneWidget);
 
-    await tester.pumpWidget(_app(_snapshot(phase: "vote", phaseLabel: "投票隔離")));
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "vote",
+      phaseLabel: "投票隔離",
+      role: const PrivateRole(
+        id: "ghost",
+        name: "路人",
+        faction: "lighthouse",
+        factionLabel: "燈塔網",
+        skill: "未有圖。",
+      ),
+    )));
     await tester.pump();
     expect(find.byKey(const Key("scene-vote")), findsNothing);
     expect(find.text("確認投票"), findsOneWidget);
     expect(find.byKey(const Key("role-placeholder")), findsOneWidget);
+    expect(find.text("路"), findsOneWidget);
+    _expectFaction(tester, ArtCatalog.lighthouse);
   });
 
   testWidgets("table shows the AI badge, vote, night action, and ending", (tester) async {

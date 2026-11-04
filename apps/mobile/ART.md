@@ -1,42 +1,48 @@
-# 美術包 v1（結構，未收圖）
+# 美術包 v1
 
-Flutter 客戶端預留咗原創美術位。文字流程唔依賴圖，而家用陣營色佔位同階段色罩。
+風格化 **3D** 電影角色渲染，唔係 2D 插畫。男女都有。文字仍然可以獨立睇完一局；圖只係半身同階段背景，上面有暗罩。
 
-上一版上傳係 2D 厚塗，**冇打入 app**。下一包要係風格化 **3D 渲染**，角色要有女有男，先至放入下面路徑。風格板只係方向參考，唔顯示喺遊戲入面。
+風格板 `assets/art/ref/style-board.jpg` 只係方向參考，**唔顯示、亦唔打入遊戲包**。
 
 ## 調色
 
-| 陣營 | 色 | 而家 |
-| --- | --- | --- |
-| 燈塔網 lighthouse | teal `#3ECFBF` | 佔位圓 |
-| 消音組 silence | violet `#8B78E6` | 佔位圓 |
-| 灰頻 grey | amber `#E7C27A` | 佔位圓 |
+| 陣營 | 色 |
+| --- | --- |
+| 燈塔網 lighthouse | teal `#3ECFBF` |
+| 消音組 silence | violet `#8B78E6` |
+| 灰頻 grey | amber `#E7C27A` |
 
-頁首同階段背景：燈亮係深 teal 漸層，熄燈係深紫漸層，上面再加暗罩，等字保持可讀。有圖之後同一層罩會加深。
+未登記嘅 RoleId 先會退回陣營色圓。而家標準 11 席全部有半身圖。
 
-## 預留路徑
+## 性別鎖定
 
-| 用途 | 路徑 | 狀態 |
-| --- | --- | --- |
-| 孤證客 warrant 半身 | `assets/art/roles/warrant.jpg` | 未收，用琥珀圓 |
-| 消音手 silencer 半身 | `assets/art/roles/silencer.jpg` | 未收，用紫圓 |
-| 燈亮 day_talk，draft 共用 | `assets/art/scenes/day_talk.jpg` | 未收，用 teal 罩 |
-| 熄燈 night | `assets/art/scenes/night.jpg` | 未收，用紫罩 |
-| 風格板（唔入遊戲） | `assets/art/ref/style-board.jpg` | 只作參考，未收 |
+| RoleId | 角色 | 檔 | 性別 |
+| --- | --- | --- | --- |
+| warrant | 孤證客 | `assets/art/roles/warrant.jpg` | 女 |
+| silencer | 消音手 | `assets/art/roles/silencer.jpg` | 男 |
+| tip | 線報員 | `assets/art/roles/tip.jpg` | 女 |
+| cover | 掩護員 | `assets/art/roles/cover.jpg` | 男 |
+| decoy | 假訊員 | `assets/art/roles/decoy.jpg` | 女 |
+| sweep | 掃頻員 | `assets/art/roles/sweep.jpg` | 男 |
+| echo | 回波師 | `assets/art/roles/echo.jpg` | 女 |
+| link | 通聯官 | `assets/art/roles/link.jpg` | 男 |
+| plant | 影內應 | `assets/art/roles/plant.jpg` | 女 |
+| civilian | 燈塔閒職 | `civilian_f.jpg` 預設，`civilian_m.jpg` 交替 | 女預設 |
 
-`ArtCatalog.roleBusts` 只登記 `warrant` 同 `silencer`。其餘 RoleId（線報、掃頻、掩護、回波、通聯、閒職、假訊、影內應）繼續用陣營色圓，等之後先補圖。
+`ArtCatalog.roleBusts` 把每個 RoleId 指去預設半身。閒職預設係女。有席號時，席號字元加總係奇數先用男（例如 `s2`），冇席號或者加總係偶數就用女（例如 `s1`）。兩名閒職可以因此唔同圖，而且唔會喺重整時跳來跳去。
+
+## 場景
+
+| 階段 | 檔 |
+| --- | --- |
+| 主頁、組席、`day_talk`、`draft` | `assets/art/scenes/day_talk.jpg` |
+| `night` | `assets/art/scenes/night.jpg` |
+
+投票、結算、終局保持實色。身份卡同操作區維持實底，暗罩確保字可讀。
 
 ## 邊度會見到
 
-- 主頁、組席：燈亮色調頁首，標題同房間代碼貼喺暗罩底。
-- 私人身分（包括開局抽身分）：有半身圖先顯示圓角卡；否則係陣營色圓加角色第一個字。
-- `day_talk` 同 `draft`：燈亮背景加暗罩。投票、結算、終局保持實色。
-- `night`：熄燈背景加暗罩。底下操作區維持實色，避免按鈕壓住畫面。
-
-## 換上 3D 圖
-
-1. 檔案放到上表路徑。要風格化 3D 角色渲染，男女都要有，唔好用 2D 厚塗。
-2. 取消 `pubspec.yaml` 入面 `assets:` 嗰段註解。
-3. 將 `ArtCatalog.installed` 改做 `true`（同 pubspec 同一變更）。
-
-未安裝之前 `bustFor` / `sceneFor` 會回傳空，畫面繼續用佔位，唔會嘗試載入唔存在嘅檔。
+- 主頁、組席：燈亮場景做頁首，標題同房間代碼貼喺暗罩底。
+- 私人身分（包括開局抽身分）：圓角半身。標準角色都有圖。
+- `day_talk` 同 `draft`：燈亮背景。
+- `night`：熄燈背景。底下操作區維持實色。

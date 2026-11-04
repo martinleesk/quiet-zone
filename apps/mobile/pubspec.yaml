@@ -18,10 +18,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  # 3D renders are not in the tree yet. Uncomment with ArtCatalog.installed.
-  # See ART.md.
-  # assets:
-  #   - assets/art/roles/warrant.jpg
-  #   - assets/art/roles/silencer.jpg
-  #   - assets/art/scenes/day_talk.jpg
-  #   - assets/art/scenes/night.jpg
+  assets:
+    - assets/art/roles/
+    - assets/art/scenes/
