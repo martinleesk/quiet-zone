@@ -150,18 +150,28 @@ class SceneBackdrop extends StatelessWidget {
     super.key,
     required this.phase,
     required this.child,
-  }) : height = null;
+  }) : height = null,
+       stage = false;
 
   const SceneBackdrop.banner({
     super.key,
     required this.phase,
     required this.child,
     this.height = 200,
-  });
+  }) : stage = false;
+
+  /// Lighter top so a landscape stage can show the scene beside the copy.
+  const SceneBackdrop.stage({
+    super.key,
+    required this.phase,
+    required this.child,
+  }) : height = null,
+       stage = true;
 
   final String phase;
   final Widget child;
   final double? height;
+  final bool stage;
 
   @override
   Widget build(BuildContext context) {
@@ -193,15 +203,21 @@ class SceneBackdrop extends StatelessWidget {
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [
-                  ArtCatalog.deep.withValues(
-                    alpha: asset == null ? 0.28 : 0.66,
-                  ),
-                  ArtCatalog.deep.withValues(
-                    alpha: asset == null ? 0.84 : 0.86,
-                  ),
-                  ArtCatalog.deep.withValues(alpha: 0.94),
-                ],
+                colors: stage
+                    ? [
+                        ArtCatalog.deep.withValues(alpha: asset == null ? 0.2 : 0.12),
+                        ArtCatalog.deep.withValues(alpha: asset == null ? 0.45 : 0.28),
+                        ArtCatalog.deep.withValues(alpha: 0.78),
+                      ]
+                    : [
+                        ArtCatalog.deep.withValues(
+                          alpha: asset == null ? 0.28 : 0.66,
+                        ),
+                        ArtCatalog.deep.withValues(
+                          alpha: asset == null ? 0.84 : 0.86,
+                        ),
+                        ArtCatalog.deep.withValues(alpha: 0.94),
+                      ],
                 stops: const [0, 0.48, 1],
               ),
             ),
@@ -217,10 +233,18 @@ class SceneBackdrop extends StatelessWidget {
 
 /// 3D bust for a known RoleId. Unknown ids keep the faction circle.
 class RolePortrait extends StatelessWidget {
-  const RolePortrait({super.key, required this.role, this.seatId});
+  const RolePortrait({
+    super.key,
+    required this.role,
+    this.seatId,
+    this.width = 84,
+    this.height = 108,
+  });
 
   final PrivateRole role;
   final String? seatId;
+  final double width;
+  final double height;
 
   @override
   Widget build(BuildContext context) {
@@ -231,8 +255,8 @@ class RolePortrait extends StatelessWidget {
       key: Key("role-bust:$asset"),
       borderRadius: BorderRadius.circular(16),
       child: SizedBox(
-        width: 84,
-        height: 108,
+        width: width,
+        height: height,
         child: Image(
           image: AssetImage(asset),
           fit: BoxFit.cover,
