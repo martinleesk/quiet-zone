@@ -67,6 +67,24 @@ void main() {
     expect(find.text("待核實｜真釘"), findsOneWidget);
     expect(find.text("釘選殘訊"), findsOneWidget);
 
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "day_talk",
+      phaseLabel: "燈亮討論",
+      muted: true,
+      sealCard: "封口卡：你呢回合只可以投票。",
+    )));
+    expect(find.textContaining("封口卡"), findsOneWidget);
+    expect(find.text("封口中：呢個階段只可以等投票，唔可以發言。"), findsOneWidget);
+    expect(find.text("短句"), findsNothing);
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "day_talk",
+      phaseLabel: "燈亮討論",
+      skillActions: const [NightChoice(action: "mark", label: "標記消音嫌疑", needsTarget: true)],
+      marks: const ["s2"],
+    )));
+    expect(find.textContaining("私密標記"), findsOneWidget);
+
     await tester.pumpWidget(_app(_snapshot(phase: "vote", phaseLabel: "投票隔離", anonymousVote: true)));
     await tester.pump();
     expect(find.text("確認投票"), findsOneWidget);
@@ -111,6 +129,9 @@ GameSnapshot _snapshot({
   List<NightChoice> skillActions = const [],
   List<PinItem> pins = const [],
   bool anonymousVote = false,
+  bool muted = false,
+  String? sealCard,
+  List<String> marks = const [],
 }) {
   return GameSnapshot(
     public: PublicView(
@@ -151,7 +172,9 @@ GameSnapshot _snapshot({
       nightActions: nightActions,
       skillActions: skillActions,
       anonymousVote: anonymousVote,
-      marks: const [],
+      muted: muted,
+      sealCard: sealCard,
+      marks: marks,
     ),
   );
 }

@@ -219,6 +219,9 @@ class PrivateView {
     this.skillActions = const [],
     this.anonymousVote = false,
     this.fakeCharges = 0,
+    this.muted = false,
+    this.sealCard,
+    this.reclaimToken,
     required this.marks,
   });
 
@@ -236,6 +239,9 @@ class PrivateView {
   final List<NightChoice> skillActions;
   final bool anonymousVote;
   final int fakeCharges;
+  final bool muted;
+  final String? sealCard;
+  final String? reclaimToken;
   final List<String> marks;
 
   factory PrivateView.fromJson(Map<String, dynamic> json) {
@@ -255,6 +261,9 @@ class PrivateView {
       skillActions: _maps(json["skillActions"]).map(NightChoice.fromJson).toList(),
       anonymousVote: json["anonymousVote"] == true,
       fakeCharges: _asInt(json["fakeCharges"]),
+      muted: json["muted"] == true,
+      sealCard: json["sealCard"]?.toString(),
+      reclaimToken: json["reclaimToken"]?.toString(),
       marks: _strings(json["marks"]),
     );
   }
