@@ -25,7 +25,10 @@ class GameController extends ChangeNotifier {
   bool _leaving = false;
   bool _reclaiming = false;
   final Set<String> dismissedTips = {};
+  final Set<String> dismissedCoaches = {};
   int? secondsLeft;
+  int? phaseBudget;
+  String? _clockPhase;
   Timer? _countdown;
 
   Future<void> createRoom(String url, String nickname) {
@@ -90,6 +93,11 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void dismissCoach(String id) {
+    dismissedCoaches.add(id);
+    notifyListeners();
+  }
+
   Future<void> leave() async {
     _leaving = true;
     _reclaimToken = null;
@@ -151,9 +159,13 @@ class GameController extends ChangeNotifier {
     }
   }
 
-  void _syncCountdown(int? next) {
+  void _syncCountdown(int? next, [String? phase]) {
     _countdown?.cancel();
     secondsLeft = next;
+    if (phase != null && (_clockPhase != phase || (next != null && (phaseBudget == null || next > phaseBudget!)))) {
+      _clockPhase = phase;
+      phaseBudget = next;
+    }
     if (next == null) return;
     _countdown = Timer.periodic(const Duration(seconds: 1), (_) {
       if (secondsLeft == null || secondsLeft! <= 0) {
@@ -209,7 +221,7 @@ class GameController extends ChangeNotifier {
       error = null;
       final token = message.snapshot.private.reclaimToken;
       if (token != null && token.isNotEmpty) _reclaimToken = token;
-      _syncCountdown(message.snapshot.public.secondsLeft);
+      _syncCountdown(message.snapshot.public.secondsLeft, message.snapshot.public.phase);
       _reclaiming = false;
     } else if (message is ErrorMessage) {
       error = message.error.message;

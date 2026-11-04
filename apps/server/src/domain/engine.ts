@@ -48,12 +48,12 @@ interface Ballot {
 }
 
 const NIGHT_LABEL: Record<NightActionName, { label: string; needsTarget: boolean }> = {
-  disconnect: { label: "執行失聯", needsTarget: true },
-  cover: { label: "臨時掩護", needsTarget: true },
-  sweep: { label: "熄燈掃頻", needsTarget: true },
-  mark: { label: "標記消音", needsTarget: true },
-  seal: { label: "抽樣封口", needsTarget: true },
-  skip: { label: "跳過今夜", needsTarget: false },
+  disconnect: { label: "帶走呢個人", needsTarget: true },
+  cover: { label: "掩護呢個人", needsTarget: true },
+  sweep: { label: "掃呢個人", needsTarget: true },
+  mark: { label: "暗標呢個人", needsTarget: true },
+  seal: { label: "封口，唔准講", needsTarget: true },
+  skip: { label: "今夜唔用", needsTarget: false },
 };
 
 function ok(): Step {
@@ -171,6 +171,20 @@ export class GameEngine {
   }
 
   /**
+   * Trial rooms show the dealt role before Boot. Live rooms stay hidden until start.
+   * Public snapshots still omit every role id.
+   */
+  previewDeal(): void {
+    if (this.phase !== "lobby") return;
+    this.fillWithAi();
+    if (this.seats.length !== RULES.seatCount) return;
+    if (this.seats.every((seat) => seat.roleId)) return;
+    const roles = shuffle(STANDARD_DEAL, this.rng);
+    this.assertDeal(roles);
+    this.assignRoles(roles);
+  }
+
+  /**
    * Host start. When `enforceLobbyReady` is set, every seated human must be ready.
    * Empty seats are filled with AI, then the room locks at Boot.
    */
@@ -186,15 +200,10 @@ export class GameEngine {
     if (this.seats.length !== RULES.seatCount) {
       return fail("need_seats", `要 ${RULES.seatCount} 席先可以開局。`);
     }
-    const roles = deal ? [...deal] : shuffle(STANDARD_DEAL, this.rng);
+    const predealt = !deal && this.seats.every((seat) => seat.roleId);
+    const roles = deal ? [...deal] : predealt ? this.seats.map((seat) => seat.roleId as RoleId) : shuffle(STANDARD_DEAL, this.rng);
     this.assertDeal(roles);
-    for (let i = 0; i < this.seats.length; i++) {
-      const seat = this.seats[i]!;
-      const roleId = roles[i]!;
-      seat.roleId = roleId;
-      seat.sweepFog = roleId === "plant" ? 1 : 0;
-      seat.fakeCharges = roleId === "decoy" ? RULES.skills.fakePerGame : 0;
-    }
+    if (!predealt) this.assignRoles(roles);
     this.phase = "boot";
     for (const seat of this.seats) seat.ready = false;
     this.banner = "身分已私下派發。公開組成：燈塔網 ×7、消音組 ×3、灰頻 ×1。";
@@ -231,7 +240,7 @@ export class GameEngine {
     if (!seat.ok) return seat;
     if (this.phase !== "vote") return fail("wrong_phase", "而家唔係投票。");
     if (anonymous) {
-      if (seat.seat.roleId !== "plant") return fail("not_your_skill", "只有影內應可以投匿名票。");
+      if (seat.seat.roleId !== "plant") return fail("not_your_skill", "只有影燈可以投匿名票。");
       if (seat.seat.anonymousVoteUsed) return fail("anonymous_spent", "你本局匿名票已經用過。");
     }
     if (targetSeatId == null) {
@@ -252,7 +261,7 @@ export class GameEngine {
     const seat = this.requireLiving(playerId);
     if (!seat.ok) return seat;
     if (this.phase !== "day_talk") return fail("wrong_phase", "釘選只可以喺燈亮做。");
-    if (seat.seat.roleId !== "tip") return fail("not_your_skill", "只有線報員可以釘選。");
+    if (seat.seat.roleId !== "tip") return fail("not_your_skill", "只有線報可以釘選。");
     if (this.isSealed(seat.seat)) return fail("sealed", "你被封口，呢回合只可以投票。");
     if (seat.seat.pinnedThisRound) return fail("pin_spent", "你今輪已經釘過。");
     const body = text.trim().slice(0, 80);
@@ -270,7 +279,7 @@ export class GameEngine {
     const seat = this.requireLiving(playerId);
     if (!seat.ok) return seat;
     if (this.phase !== "day_talk") return fail("wrong_phase", "核對通聯只可以喺燈亮做。");
-    if (seat.seat.roleId !== "link") return fail("not_your_skill", "只有通聯官可以核對。");
+    if (seat.seat.roleId !== "link") return fail("not_your_skill", "只有通聯可以核對。");
     if (this.isSealed(seat.seat)) return fail("sealed", "你被封口，呢回合只可以投票。");
     if (seat.seat.linkedThisRound) return fail("link_spent", "你今輪已經核對過。");
     const target = this.seatById(targetSeatId);
@@ -291,7 +300,7 @@ export class GameEngine {
     const seat = this.requireLiving(playerId);
     if (!seat.ok) return seat;
     if (this.phase !== "day_talk" && this.phase !== "night") return fail("wrong_phase", "假訊只可以喺燈亮或者熄燈放。");
-    if (seat.seat.roleId !== "decoy") return fail("not_your_skill", "只有假訊員可以投放假訊。");
+    if (seat.seat.roleId !== "decoy") return fail("not_your_skill", "只有假訊可以放料。");
     if (this.phase === "day_talk" && this.isSealed(seat.seat)) return fail("sealed", "你被封口，呢回合只可以投票。");
     if (seat.seat.fakeCharges <= 0) return fail("quota", "你本局假訊額度已用完。");
     if (input.mode === "flag") {
@@ -336,7 +345,7 @@ export class GameEngine {
   submitSuspect(playerId: string, targetSeatId: string, marked: boolean): Step {
     const seat = this.requireLiving(playerId);
     if (!seat.ok) return seat;
-    if (seat.seat.roleId !== "warrant") return fail("not_your_skill", "只有孤證客可以標記。");
+    if (seat.seat.roleId !== "warrant") return fail("not_your_skill", "只有孤證可以標記。");
     if (this.phase !== "day_talk" && this.phase !== "draft" && this.phase !== "night") {
       return fail("wrong_phase", "標記可以喺燈亮、草稿或者熄燈改。");
     }
@@ -537,6 +546,8 @@ export class GameEngine {
             faction: role.faction,
             factionLabel: FACTION_LABEL[role.faction],
             skill: role.skill,
+            mnemonic: role.mnemonic,
+            when: role.when,
           }
         : null,
       teammates: seat ? this.teammatesFor(seat) : [],
@@ -609,6 +620,16 @@ export class GameEngine {
     if (!map.has(oldId)) return;
     map.set(newId, map.get(oldId) as T);
     map.delete(oldId);
+  }
+
+  private assignRoles(roles: readonly RoleId[]): void {
+    for (let i = 0; i < this.seats.length; i++) {
+      const seat = this.seats[i]!;
+      const roleId = roles[i]!;
+      seat.roleId = roleId;
+      seat.sweepFog = roleId === "plant" ? 1 : 0;
+      seat.fakeCharges = roleId === "decoy" ? RULES.skills.fakePerGame : 0;
+    }
   }
 
   private assertDeal(roles: RoleId[]): void {
@@ -948,7 +969,7 @@ export class GameEngine {
       this.winner = {
         faction: "grey",
         factionLabel: FACTION_LABEL.grey,
-        reason: "灰頻獨贏：孤證客仍在場，正確消音標記達 2。",
+        reason: "灰頻獨贏：孤證仍然在場，正確消音標記達 2。",
         kind: "grey_marks",
       };
       this.banner = this.winner.reason;
@@ -1036,19 +1057,19 @@ export class GameEngine {
     const actions: SkillChoice[] = [];
     const markWindow = this.phase === "day_talk" || this.phase === "draft" || this.phase === "night";
     if (markWindow && seat.roleId === "warrant") {
-      actions.push({ action: "mark", label: "標記消音嫌疑", needsTarget: true, needsText: false });
+      actions.push({ action: "mark", label: "暗標呢個人", needsTarget: true, needsText: false });
     }
     if (this.phase === "day_talk" && seat.roleId === "tip" && !seat.pinnedThisRound) {
-      actions.push({ action: "pin", label: "釘選殘訊", needsTarget: false, needsText: true });
+      actions.push({ action: "pin", label: "釘一句線報", needsTarget: false, needsText: true });
     }
     if (this.phase === "day_talk" && seat.roleId === "link" && !seat.linkedThisRound) {
-      actions.push({ action: "link", label: "核對通聯", needsTarget: true, needsText: false });
+      actions.push({ action: "link", label: "查上輪用過技能未", needsTarget: true, needsText: false });
     }
     const fakeWindow = this.phase === "day_talk" || this.phase === "night";
     if (fakeWindow && seat.roleId === "decoy" && seat.fakeCharges > 0) {
-      actions.push({ action: "fake_plant", label: "放來源未核", needsTarget: false, needsText: true });
+      actions.push({ action: "fake_plant", label: "放一句假料", needsTarget: false, needsText: true });
       if (this.pins.some((pin) => !pin.unverified)) {
-        actions.push({ action: "fake_flag", label: "標做待核實", needsTarget: true, needsText: false });
+        actions.push({ action: "fake_flag", label: "標做未核實", needsTarget: true, needsText: false });
       }
     }
     return actions;

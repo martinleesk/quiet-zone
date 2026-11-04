@@ -14,12 +14,16 @@ class CodexRole {
     required this.name,
     required this.faction,
     required this.skill,
+    required this.mnemonic,
+    required this.when,
   });
 
   final String id;
   final String name;
   final String faction;
   final String skill;
+  final String mnemonic;
+  final String when;
 
   String? get bustAsset => kRoleBustAssets[id];
 }
@@ -60,39 +64,51 @@ String factionLabelOf(String faction) {
 const List<CodexRole> kLighthouseRoles = [
   CodexRole(
     id: "tip",
-    name: "線報員",
+    name: "線報",
     faction: "lighthouse",
-    skill: "釘選殘訊：每個燈亮可釘一條公開資訊上時間線，唔佔發言格。",
+    mnemonic: "燈亮釘一句",
+    when: "燈亮",
+    skill: "燈亮可以釘一句公開線報，唔佔你嘅發言。",
   ),
   CodexRole(
     id: "sweep",
-    name: "掃頻員",
+    name: "掃頻",
     faction: "lighthouse",
-    skill: "熄燈掃頻：私下得知目標係「消音痕跡」定「訊號乾淨」。",
+    mnemonic: "熄燈查人",
+    when: "熄燈",
+    skill: "熄燈揀一個人，私下知道佢係消音定乾淨。",
   ),
   CodexRole(
     id: "cover",
-    name: "掩護員",
+    name: "掩護",
     faction: "lighthouse",
-    skill: "臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。",
+    mnemonic: "擋一夜",
+    when: "熄燈",
+    skill: "熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。",
   ),
   CodexRole(
     id: "echo",
-    name: "回波師",
+    name: "回波",
     faction: "lighthouse",
-    skill: "失聯回波：有人被投票隔離後，你私下收到陣營殘片。",
+    mnemonic: "票走先有料",
+    when: "有人被票走之後",
+    skill: "有人被票走之後，你私下收到佢係邊個陣營。",
   ),
   CodexRole(
     id: "link",
-    name: "通聯官",
+    name: "通聯",
     faction: "lighthouse",
-    skill: "核對通聯：每個燈亮可查一人上回合用過主動技能未，唔會話你知係邊種。",
+    mnemonic: "查上輪",
+    when: "燈亮",
+    skill: "燈亮揀一個人，知道佢上一輪用過技能未。",
   ),
   CodexRole(
     id: "civilian",
-    name: "燈塔閒職",
+    name: "守燈",
     faction: "lighthouse",
-    skill: "無主動技能。你可以發言、草稿、投票。",
+    mnemonic: "冇技能",
+    when: "冇",
+    skill: "冇技能。你靠講一句、寫草稿同投票。",
   ),
 ];
 
@@ -101,28 +117,36 @@ const List<CodexRole> kSilenceRoles = [
     id: "silencer",
     name: "消音手",
     faction: "silence",
-    skill: "執行失聯：熄燈令一名未受掩護嘅玩家失聯移出。",
+    mnemonic: "熄燈帶走",
+    when: "熄燈",
+    skill: "熄燈揀一個冇掩護嘅人，令佢離場。",
   ),
   CodexRole(
     id: "decoy",
-    name: "假訊員",
+    name: "假訊",
     faction: "silence",
-    skill: "投放假訊：每局兩次。可以將釘選標做待核實，或者放一句來源未核。",
+    mnemonic: "整亂線報",
+    when: "燈亮或熄燈",
+    skill: "每局兩次。可以放一句假料，或者標一條線報未核實。",
   ),
   CodexRole(
     id: "plant",
-    name: "影內應",
+    name: "影燈",
     faction: "silence",
-    skill: "訊號霧：第一次被掃頻固定回「訊號乾淨」。每局一次匿名票。",
+    mnemonic: "第一次裝乾淨",
+    when: "被查或者投票",
+    skill: "第一次被掃頻會顯示乾淨。投票可以匿名一次。",
   ),
 ];
 
 const List<CodexRole> kGreyRoles = [
   CodexRole(
     id: "warrant",
-    name: "孤證客",
+    name: "孤證",
     faction: "grey",
-    skill: "私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。",
+    mnemonic: "暗標兩個就贏",
+    when: "隨時標，熄燈封口",
+    skill: "暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。",
   ),
 ];
 
@@ -131,19 +155,19 @@ const List<CodexFactionGroup> kCodexFactions = [
   CodexFactionGroup(
     id: "lighthouse",
     label: "燈塔網",
-    blurb: "消音組全部離場就解封。",
+    blurb: "消音組全部離場就贏。",
     roles: kLighthouseRoles,
   ),
   CodexFactionGroup(
     id: "silence",
     label: "消音組",
-    blurb: "成功失聯 3 次，或者燈塔網已無法投票。",
+    blurb: "成功帶走 3 個人，或者燈塔網票唔到，就贏。",
     roles: kSilenceRoles,
   ),
   CodexFactionGroup(
     id: "grey",
     label: "灰頻",
-    blurb: "孤證客仍在場，正確標記消音組達 2 即獨贏。",
+    blurb: "孤證仍然在場，暗標中兩個消音就獨贏。",
     roles: kGreyRoles,
   ),
 ];
@@ -151,3 +175,21 @@ const List<CodexFactionGroup> kCodexFactions = [
 List<CodexRole> get kStandardRoles => [
       for (final group in kCodexFactions) ...group.roles,
     ];
+
+/// Three arrows on the role card. Same text as ROLE_ACTS in roles.ts.
+const Map<String, List<String>> kRoleActs = {
+  "tip": ["燈亮撳釘一句", "寫低你見到嘅", "唔佔發言"],
+  "sweep": ["熄燈先用", "揀一個人", "知道消音定乾淨"],
+  "cover": ["熄燈先用", "揀一個要保嘅人", "成功後下一夜唔用"],
+  "echo": ["唔使撳掣", "有人被票走", "你私下收到陣營"],
+  "link": ["燈亮先用", "揀一個人", "知道上輪用過未"],
+  "civilian": ["講一句", "寫草稿", "投票"],
+  "silencer": ["熄燈先用", "揀冇掩護嘅人", "令佢離場"],
+  "decoy": ["每局兩次", "放一句假料", "或標線報未核實"],
+  "plant": ["第一次被查裝乾淨", "投票可匿名一次", "唔使每輪撳"],
+  "warrant": ["暗標消音", "標中兩個就獨贏", "熄燈可以封口"],
+};
+
+List<String> roleActs(String roleId) => kRoleActs[roleId] ?? const [];
+
+const cardFooter = "平票就冇人走 · 隔離唔講陣營";

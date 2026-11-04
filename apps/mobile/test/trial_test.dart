@@ -146,6 +146,8 @@ void main() {
     await tester.pump();
     expect(find.byKey(const Key("landscape-table")), findsOneWidget);
     expect(find.byKey(const Key("scene-draft")), findsOneWidget);
+    expect(find.byKey(const Key("coach-line")), findsOneWidget);
+    expect(find.text("呢段冇得用技能"), findsOneWidget);
     expect(find.text("交草稿並準備"), findsOneWidget);
     await tester.enterText(find.byType(TextField), "試玩草稿：先聽完再隔離。");
     await tester.pump();
@@ -162,8 +164,10 @@ void main() {
     ));
     await tester.pump();
     expect(find.byKey(const Key("scene-night")), findsOneWidget);
+    expect(find.byKey(const Key("skill-card")), findsOneWidget);
+    expect(find.text("發動技能"), findsOneWidget);
     expect(find.text("臨時掩護"), findsOneWidget);
-    expect(find.text("提交行動"), findsOneWidget);
+    expect(find.text("發動"), findsOneWidget);
     controller.dispose();
   });
 
@@ -177,9 +181,9 @@ void main() {
       expect(app, contains(role.name), reason: role.id);
       expect(app, contains(role.skill), reason: role.id);
     }
-    expect(app, contains("消音組全部離場就解封。"));
-    expect(app, contains("成功失聯 3 次，或者燈塔網已無法投票。"));
-    expect(app, contains("孤證客仍在場，正確標記消音組達 2 即獨贏。"));
+    expect(app, contains("消音組全部離場就贏。"));
+    expect(app, contains("成功帶走 3 個人，或者燈塔網票唔到，就贏。"));
+    expect(app, contains("孤證仍然在場，暗標中兩個消音就獨贏。"));
     expect(html, contains("../ui-demo/art/scenes/day_talk.jpg"));
     expect(html, contains("../ui-demo/art/scenes/night.jpg"));
   });

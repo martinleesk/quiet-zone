@@ -93,7 +93,7 @@ test("boot hides every role except your own and broadcasts composition only", ()
   }
   const silencer = engine.privateView(ids[1]!);
   assert.equal(silencer.teammates.length, 2);
-  assert.ok(silencer.teammates.every((mate) => mate.roleName === "假訊員" || mate.roleName === "影內應"));
+  assert.ok(silencer.teammates.every((mate) => mate.roleName === "假訊" || mate.roleName === "影燈"));
 });
 
 test("tie vote isolates nobody", () => {

@@ -18,26 +18,26 @@ void main() {
 
     await tester.tap(find.byKey(const Key("demo-screen:codex")));
     await tester.pumpAndSettle();
-    expect(find.text("線報員"), findsOneWidget);
+    expect(find.text("線報"), findsOneWidget);
     expect(find.text(kStandardRoles.firstWhere((role) => role.id == "warrant").skill), findsNothing);
     await tester.tap(find.byKey(const Key("codex-role:warrant")));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key("codex-detail")), findsOneWidget);
-    expect(find.text("私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。"), findsOneWidget);
-    expect(find.text("孤證客仍在場，正確標記消音組達 2 即獨贏。"), findsOneWidget);
+    expect(find.text("暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。"), findsOneWidget);
+    expect(find.text("孤證仍然在場，暗標中兩個消音就獨贏。"), findsOneWidget);
 
     await tester.tap(find.byKey(const Key("demo-screen:day")));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key("landscape-table")), findsOneWidget);
     expect(find.byKey(const Key("scene-day_talk")), findsOneWidget);
     expect(find.text("送出"), findsOneWidget);
-    expect(find.text("臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。"), findsOneWidget);
+    expect(find.text("熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。"), findsOneWidget);
 
     await tester.tap(find.byKey(const Key("demo-screen:night")));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key("scene-night")), findsOneWidget);
-    expect(find.text("臨時掩護"), findsOneWidget);
-    expect(find.text("提交行動"), findsOneWidget);
+    expect(find.text("掩護呢個人"), findsOneWidget);
+    expect(find.text("發動"), findsOneWidget);
     expect(find.byKey(const Key("role-bust:${ArtCatalog.cover}")), findsWidgets);
     expect(tester.takeException(), isNull);
   });
@@ -48,9 +48,9 @@ void main() {
       expect(html, contains(role.name), reason: role.id);
       expect(html, contains(role.skill), reason: role.id);
     }
-    expect(html, contains("消音組全部離場就解封。"));
-    expect(html, contains("成功失聯 3 次，或者燈塔網已無法投票。"));
-    expect(html, contains("孤證客仍在場，正確標記消音組達 2 即獨贏。"));
+    expect(html, contains("消音組全部離場就贏。"));
+    expect(html, contains("成功帶走 3 個人，或者燈塔網票唔到，就贏。"));
+    expect(html, contains("孤證仍然在場，暗標中兩個消音就獨贏。"));
     for (final file in [
       "art/roles/warrant.jpg",
       "art/roles/silencer.jpg",

@@ -146,63 +146,83 @@ var QuietZoneTrial = (() => {
   var ROLES = {
     tip: {
       id: "tip",
-      name: "\u7DDA\u5831\u54E1",
+      name: "\u7DDA\u5831",
       faction: "lighthouse",
-      skill: "\u91D8\u9078\u6B98\u8A0A\uFF1A\u6BCF\u500B\u71C8\u4EAE\u53EF\u91D8\u4E00\u689D\u516C\u958B\u8CC7\u8A0A\u4E0A\u6642\u9593\u7DDA\uFF0C\u5514\u4F54\u767C\u8A00\u683C\u3002"
+      mnemonic: "\u71C8\u4EAE\u91D8\u4E00\u53E5",
+      when: "\u71C8\u4EAE",
+      skill: "\u71C8\u4EAE\u53EF\u4EE5\u91D8\u4E00\u53E5\u516C\u958B\u7DDA\u5831\uFF0C\u5514\u4F54\u4F60\u5605\u767C\u8A00\u3002"
     },
     sweep: {
       id: "sweep",
-      name: "\u6383\u983B\u54E1",
+      name: "\u6383\u983B",
       faction: "lighthouse",
-      skill: "\u7184\u71C8\u6383\u983B\uFF1A\u79C1\u4E0B\u5F97\u77E5\u76EE\u6A19\u4FC2\u300C\u6D88\u97F3\u75D5\u8DE1\u300D\u5B9A\u300C\u8A0A\u865F\u4E7E\u6DE8\u300D\u3002"
+      mnemonic: "\u7184\u71C8\u67E5\u4EBA",
+      when: "\u7184\u71C8",
+      skill: "\u7184\u71C8\u63C0\u4E00\u500B\u4EBA\uFF0C\u79C1\u4E0B\u77E5\u9053\u4F62\u4FC2\u6D88\u97F3\u5B9A\u4E7E\u6DE8\u3002"
     },
     cover: {
       id: "cover",
-      name: "\u63A9\u8B77\u54E1",
+      name: "\u63A9\u8B77",
       faction: "lighthouse",
-      skill: "\u81E8\u6642\u63A9\u8B77\uFF1A\u514D\u75AB\u8A72\u591C\u5931\u806F\u3002\u6210\u529F\u5F8C\u4E0B\u4E00\u591C\u5514\u53EF\u4EE5\u518D\u6210\u529F\u3002"
+      mnemonic: "\u64CB\u4E00\u591C",
+      when: "\u7184\u71C8",
+      skill: "\u7184\u71C8\u4FDD\u4E00\u500B\u4EBA\u5514\u6703\u88AB\u5E36\u8D70\u3002\u6210\u529F\u5F8C\u4E0B\u4E00\u591C\u5514\u53EF\u4EE5\u518D\u7528\u3002"
     },
     echo: {
       id: "echo",
-      name: "\u56DE\u6CE2\u5E2B",
+      name: "\u56DE\u6CE2",
       faction: "lighthouse",
-      skill: "\u5931\u806F\u56DE\u6CE2\uFF1A\u6709\u4EBA\u88AB\u6295\u7968\u9694\u96E2\u5F8C\uFF0C\u4F60\u79C1\u4E0B\u6536\u5230\u9663\u71DF\u6B98\u7247\u3002"
+      mnemonic: "\u7968\u8D70\u5148\u6709\u6599",
+      when: "\u6709\u4EBA\u88AB\u7968\u8D70\u4E4B\u5F8C",
+      skill: "\u6709\u4EBA\u88AB\u7968\u8D70\u4E4B\u5F8C\uFF0C\u4F60\u79C1\u4E0B\u6536\u5230\u4F62\u4FC2\u908A\u500B\u9663\u71DF\u3002"
     },
     link: {
       id: "link",
-      name: "\u901A\u806F\u5B98",
+      name: "\u901A\u806F",
       faction: "lighthouse",
-      skill: "\u6838\u5C0D\u901A\u806F\uFF1A\u6BCF\u500B\u71C8\u4EAE\u53EF\u67E5\u4E00\u4EBA\u4E0A\u56DE\u5408\u7528\u904E\u4E3B\u52D5\u6280\u80FD\u672A\uFF0C\u5514\u6703\u8A71\u4F60\u77E5\u4FC2\u908A\u7A2E\u3002"
+      mnemonic: "\u67E5\u4E0A\u8F2A",
+      when: "\u71C8\u4EAE",
+      skill: "\u71C8\u4EAE\u63C0\u4E00\u500B\u4EBA\uFF0C\u77E5\u9053\u4F62\u4E0A\u4E00\u8F2A\u7528\u904E\u6280\u80FD\u672A\u3002"
     },
     civilian: {
       id: "civilian",
-      name: "\u71C8\u5854\u9592\u8077",
+      name: "\u5B88\u71C8",
       faction: "lighthouse",
-      skill: "\u7121\u4E3B\u52D5\u6280\u80FD\u3002\u4F60\u53EF\u4EE5\u767C\u8A00\u3001\u8349\u7A3F\u3001\u6295\u7968\u3002"
+      mnemonic: "\u5187\u6280\u80FD",
+      when: "\u5187",
+      skill: "\u5187\u6280\u80FD\u3002\u4F60\u9760\u8B1B\u4E00\u53E5\u3001\u5BEB\u8349\u7A3F\u540C\u6295\u7968\u3002"
     },
     silencer: {
       id: "silencer",
       name: "\u6D88\u97F3\u624B",
       faction: "silence",
-      skill: "\u57F7\u884C\u5931\u806F\uFF1A\u7184\u71C8\u4EE4\u4E00\u540D\u672A\u53D7\u63A9\u8B77\u5605\u73A9\u5BB6\u5931\u806F\u79FB\u51FA\u3002"
+      mnemonic: "\u7184\u71C8\u5E36\u8D70",
+      when: "\u7184\u71C8",
+      skill: "\u7184\u71C8\u63C0\u4E00\u500B\u5187\u63A9\u8B77\u5605\u4EBA\uFF0C\u4EE4\u4F62\u96E2\u5834\u3002"
     },
     decoy: {
       id: "decoy",
-      name: "\u5047\u8A0A\u54E1",
+      name: "\u5047\u8A0A",
       faction: "silence",
-      skill: "\u6295\u653E\u5047\u8A0A\uFF1A\u6BCF\u5C40\u5169\u6B21\u3002\u53EF\u4EE5\u5C07\u91D8\u9078\u6A19\u505A\u5F85\u6838\u5BE6\uFF0C\u6216\u8005\u653E\u4E00\u53E5\u4F86\u6E90\u672A\u6838\u3002"
+      mnemonic: "\u6574\u4E82\u7DDA\u5831",
+      when: "\u71C8\u4EAE\u6216\u7184\u71C8",
+      skill: "\u6BCF\u5C40\u5169\u6B21\u3002\u53EF\u4EE5\u653E\u4E00\u53E5\u5047\u6599\uFF0C\u6216\u8005\u6A19\u4E00\u689D\u7DDA\u5831\u672A\u6838\u5BE6\u3002"
     },
     plant: {
       id: "plant",
-      name: "\u5F71\u5167\u61C9",
+      name: "\u5F71\u71C8",
       faction: "silence",
-      skill: "\u8A0A\u865F\u9727\uFF1A\u7B2C\u4E00\u6B21\u88AB\u6383\u983B\u56FA\u5B9A\u56DE\u300C\u8A0A\u865F\u4E7E\u6DE8\u300D\u3002\u6BCF\u5C40\u4E00\u6B21\u533F\u540D\u7968\u3002"
+      mnemonic: "\u7B2C\u4E00\u6B21\u88DD\u4E7E\u6DE8",
+      when: "\u88AB\u67E5\u6216\u8005\u6295\u7968",
+      skill: "\u7B2C\u4E00\u6B21\u88AB\u6383\u983B\u6703\u986F\u793A\u4E7E\u6DE8\u3002\u6295\u7968\u53EF\u4EE5\u533F\u540D\u4E00\u6B21\u3002"
     },
     warrant: {
       id: "warrant",
-      name: "\u5B64\u8B49\u5BA2",
+      name: "\u5B64\u8B49",
       faction: "grey",
-      skill: "\u79C1\u5BC6\u6A19\u8A18\u6D88\u97F3\u7D44\u3002\u4ECD\u5728\u5834\u4E14\u6B63\u78BA\u6A19\u8A18\u9054 2 \u5373\u7070\u983B\u7368\u8D0F\u3002\u6BCF\u5C40\u53EF\u5C01\u53E3\u4E00\u4EBA\u3002"
+      mnemonic: "\u6697\u6A19\u5169\u500B\u5C31\u8D0F",
+      when: "\u96A8\u6642\u6A19\uFF0C\u7184\u71C8\u5C01\u53E3",
+      skill: "\u6697\u4E2D\u6A19\u6D88\u97F3\u3002\u6A19\u4E2D\u5169\u500B\u53C8\u4ECD\u7136\u5728\u5834\u5C31\u4F60\u7368\u8D0F\u3002\u7184\u71C8\u53EF\u4EE5\u5C01\u4E00\u500B\u4EBA\u5514\u51C6\u8B1B\u3002"
     }
   };
   var STANDARD_DEAL = [
@@ -255,12 +275,12 @@ var QuietZoneTrial = (() => {
 
   // src/domain/engine.ts
   var NIGHT_LABEL = {
-    disconnect: { label: "\u57F7\u884C\u5931\u806F", needsTarget: true },
-    cover: { label: "\u81E8\u6642\u63A9\u8B77", needsTarget: true },
-    sweep: { label: "\u7184\u71C8\u6383\u983B", needsTarget: true },
-    mark: { label: "\u6A19\u8A18\u6D88\u97F3", needsTarget: true },
-    seal: { label: "\u62BD\u6A23\u5C01\u53E3", needsTarget: true },
-    skip: { label: "\u8DF3\u904E\u4ECA\u591C", needsTarget: false }
+    disconnect: { label: "\u5E36\u8D70\u5462\u500B\u4EBA", needsTarget: true },
+    cover: { label: "\u63A9\u8B77\u5462\u500B\u4EBA", needsTarget: true },
+    sweep: { label: "\u6383\u5462\u500B\u4EBA", needsTarget: true },
+    mark: { label: "\u6697\u6A19\u5462\u500B\u4EBA", needsTarget: true },
+    seal: { label: "\u5C01\u53E3\uFF0C\u5514\u51C6\u8B1B", needsTarget: true },
+    skip: { label: "\u4ECA\u591C\u5514\u7528", needsTarget: false }
   };
   function ok() {
     return { ok: true };
@@ -354,6 +374,19 @@ var QuietZoneTrial = (() => {
       return ok();
     }
     /**
+     * Trial rooms show the dealt role before Boot. Live rooms stay hidden until start.
+     * Public snapshots still omit every role id.
+     */
+    previewDeal() {
+      if (this.phase !== "lobby") return;
+      this.fillWithAi();
+      if (this.seats.length !== RULES.seatCount) return;
+      if (this.seats.every((seat) => seat.roleId)) return;
+      const roles = shuffle(STANDARD_DEAL, this.rng);
+      this.assertDeal(roles);
+      this.assignRoles(roles);
+    }
+    /**
      * Host start. When `enforceLobbyReady` is set, every seated human must be ready.
      * Empty seats are filled with AI, then the room locks at Boot.
      */
@@ -369,15 +402,10 @@ var QuietZoneTrial = (() => {
       if (this.seats.length !== RULES.seatCount) {
         return fail("need_seats", `\u8981 ${RULES.seatCount} \u5E2D\u5148\u53EF\u4EE5\u958B\u5C40\u3002`);
       }
-      const roles = deal ? [...deal] : shuffle(STANDARD_DEAL, this.rng);
+      const predealt = !deal && this.seats.every((seat) => seat.roleId);
+      const roles = deal ? [...deal] : predealt ? this.seats.map((seat) => seat.roleId) : shuffle(STANDARD_DEAL, this.rng);
       this.assertDeal(roles);
-      for (let i = 0; i < this.seats.length; i++) {
-        const seat = this.seats[i];
-        const roleId = roles[i];
-        seat.roleId = roleId;
-        seat.sweepFog = roleId === "plant" ? 1 : 0;
-        seat.fakeCharges = roleId === "decoy" ? RULES.skills.fakePerGame : 0;
-      }
+      if (!predealt) this.assignRoles(roles);
       this.phase = "boot";
       for (const seat of this.seats) seat.ready = false;
       this.banner = "\u8EAB\u5206\u5DF2\u79C1\u4E0B\u6D3E\u767C\u3002\u516C\u958B\u7D44\u6210\uFF1A\u71C8\u5854\u7DB2 \xD77\u3001\u6D88\u97F3\u7D44 \xD73\u3001\u7070\u983B \xD71\u3002";
@@ -411,7 +439,7 @@ var QuietZoneTrial = (() => {
       if (!seat.ok) return seat;
       if (this.phase !== "vote") return fail("wrong_phase", "\u800C\u5BB6\u5514\u4FC2\u6295\u7968\u3002");
       if (anonymous) {
-        if (seat.seat.roleId !== "plant") return fail("not_your_skill", "\u53EA\u6709\u5F71\u5167\u61C9\u53EF\u4EE5\u6295\u533F\u540D\u7968\u3002");
+        if (seat.seat.roleId !== "plant") return fail("not_your_skill", "\u53EA\u6709\u5F71\u71C8\u53EF\u4EE5\u6295\u533F\u540D\u7968\u3002");
         if (seat.seat.anonymousVoteUsed) return fail("anonymous_spent", "\u4F60\u672C\u5C40\u533F\u540D\u7968\u5DF2\u7D93\u7528\u904E\u3002");
       }
       if (targetSeatId == null) {
@@ -431,7 +459,7 @@ var QuietZoneTrial = (() => {
       const seat = this.requireLiving(playerId);
       if (!seat.ok) return seat;
       if (this.phase !== "day_talk") return fail("wrong_phase", "\u91D8\u9078\u53EA\u53EF\u4EE5\u55BA\u71C8\u4EAE\u505A\u3002");
-      if (seat.seat.roleId !== "tip") return fail("not_your_skill", "\u53EA\u6709\u7DDA\u5831\u54E1\u53EF\u4EE5\u91D8\u9078\u3002");
+      if (seat.seat.roleId !== "tip") return fail("not_your_skill", "\u53EA\u6709\u7DDA\u5831\u53EF\u4EE5\u91D8\u9078\u3002");
       if (this.isSealed(seat.seat)) return fail("sealed", "\u4F60\u88AB\u5C01\u53E3\uFF0C\u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\u3002");
       if (seat.seat.pinnedThisRound) return fail("pin_spent", "\u4F60\u4ECA\u8F2A\u5DF2\u7D93\u91D8\u904E\u3002");
       const body = text.trim().slice(0, 80);
@@ -448,7 +476,7 @@ var QuietZoneTrial = (() => {
       const seat = this.requireLiving(playerId);
       if (!seat.ok) return seat;
       if (this.phase !== "day_talk") return fail("wrong_phase", "\u6838\u5C0D\u901A\u806F\u53EA\u53EF\u4EE5\u55BA\u71C8\u4EAE\u505A\u3002");
-      if (seat.seat.roleId !== "link") return fail("not_your_skill", "\u53EA\u6709\u901A\u806F\u5B98\u53EF\u4EE5\u6838\u5C0D\u3002");
+      if (seat.seat.roleId !== "link") return fail("not_your_skill", "\u53EA\u6709\u901A\u806F\u53EF\u4EE5\u6838\u5C0D\u3002");
       if (this.isSealed(seat.seat)) return fail("sealed", "\u4F60\u88AB\u5C01\u53E3\uFF0C\u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\u3002");
       if (seat.seat.linkedThisRound) return fail("link_spent", "\u4F60\u4ECA\u8F2A\u5DF2\u7D93\u6838\u5C0D\u904E\u3002");
       const target = this.seatById(targetSeatId);
@@ -468,7 +496,7 @@ var QuietZoneTrial = (() => {
       const seat = this.requireLiving(playerId);
       if (!seat.ok) return seat;
       if (this.phase !== "day_talk" && this.phase !== "night") return fail("wrong_phase", "\u5047\u8A0A\u53EA\u53EF\u4EE5\u55BA\u71C8\u4EAE\u6216\u8005\u7184\u71C8\u653E\u3002");
-      if (seat.seat.roleId !== "decoy") return fail("not_your_skill", "\u53EA\u6709\u5047\u8A0A\u54E1\u53EF\u4EE5\u6295\u653E\u5047\u8A0A\u3002");
+      if (seat.seat.roleId !== "decoy") return fail("not_your_skill", "\u53EA\u6709\u5047\u8A0A\u53EF\u4EE5\u653E\u6599\u3002");
       if (this.phase === "day_talk" && this.isSealed(seat.seat)) return fail("sealed", "\u4F60\u88AB\u5C01\u53E3\uFF0C\u5462\u56DE\u5408\u53EA\u53EF\u4EE5\u6295\u7968\u3002");
       if (seat.seat.fakeCharges <= 0) return fail("quota", "\u4F60\u672C\u5C40\u5047\u8A0A\u984D\u5EA6\u5DF2\u7528\u5B8C\u3002");
       if (input.mode === "flag") {
@@ -510,7 +538,7 @@ var QuietZoneTrial = (() => {
     submitSuspect(playerId, targetSeatId, marked) {
       const seat = this.requireLiving(playerId);
       if (!seat.ok) return seat;
-      if (seat.seat.roleId !== "warrant") return fail("not_your_skill", "\u53EA\u6709\u5B64\u8B49\u5BA2\u53EF\u4EE5\u6A19\u8A18\u3002");
+      if (seat.seat.roleId !== "warrant") return fail("not_your_skill", "\u53EA\u6709\u5B64\u8B49\u53EF\u4EE5\u6A19\u8A18\u3002");
       if (this.phase !== "day_talk" && this.phase !== "draft" && this.phase !== "night") {
         return fail("wrong_phase", "\u6A19\u8A18\u53EF\u4EE5\u55BA\u71C8\u4EAE\u3001\u8349\u7A3F\u6216\u8005\u7184\u71C8\u6539\u3002");
       }
@@ -701,7 +729,9 @@ var QuietZoneTrial = (() => {
           name: role.name,
           faction: role.faction,
           factionLabel: FACTION_LABEL[role.faction],
-          skill: role.skill
+          skill: role.skill,
+          mnemonic: role.mnemonic,
+          when: role.when
         } : null,
         teammates: seat ? this.teammatesFor(seat) : [],
         inbox: seat ? [...seat.inbox] : [],
@@ -765,6 +795,15 @@ var QuietZoneTrial = (() => {
       if (!map.has(oldId)) return;
       map.set(newId, map.get(oldId));
       map.delete(oldId);
+    }
+    assignRoles(roles) {
+      for (let i = 0; i < this.seats.length; i++) {
+        const seat = this.seats[i];
+        const roleId = roles[i];
+        seat.roleId = roleId;
+        seat.sweepFog = roleId === "plant" ? 1 : 0;
+        seat.fakeCharges = roleId === "decoy" ? RULES.skills.fakePerGame : 0;
+      }
     }
     assertDeal(roles) {
       if (roles.length !== RULES.seatCount) throw new Error("deal length");
@@ -1075,7 +1114,7 @@ var QuietZoneTrial = (() => {
         this.winner = {
           faction: "grey",
           factionLabel: FACTION_LABEL.grey,
-          reason: "\u7070\u983B\u7368\u8D0F\uFF1A\u5B64\u8B49\u5BA2\u4ECD\u5728\u5834\uFF0C\u6B63\u78BA\u6D88\u97F3\u6A19\u8A18\u9054 2\u3002",
+          reason: "\u7070\u983B\u7368\u8D0F\uFF1A\u5B64\u8B49\u4ECD\u7136\u5728\u5834\uFF0C\u6B63\u78BA\u6D88\u97F3\u6A19\u8A18\u9054 2\u3002",
           kind: "grey_marks"
         };
         this.banner = this.winner.reason;
@@ -1155,19 +1194,19 @@ var QuietZoneTrial = (() => {
       const actions = [];
       const markWindow = this.phase === "day_talk" || this.phase === "draft" || this.phase === "night";
       if (markWindow && seat.roleId === "warrant") {
-        actions.push({ action: "mark", label: "\u6A19\u8A18\u6D88\u97F3\u5ACC\u7591", needsTarget: true, needsText: false });
+        actions.push({ action: "mark", label: "\u6697\u6A19\u5462\u500B\u4EBA", needsTarget: true, needsText: false });
       }
       if (this.phase === "day_talk" && seat.roleId === "tip" && !seat.pinnedThisRound) {
-        actions.push({ action: "pin", label: "\u91D8\u9078\u6B98\u8A0A", needsTarget: false, needsText: true });
+        actions.push({ action: "pin", label: "\u91D8\u4E00\u53E5\u7DDA\u5831", needsTarget: false, needsText: true });
       }
       if (this.phase === "day_talk" && seat.roleId === "link" && !seat.linkedThisRound) {
-        actions.push({ action: "link", label: "\u6838\u5C0D\u901A\u806F", needsTarget: true, needsText: false });
+        actions.push({ action: "link", label: "\u67E5\u4E0A\u8F2A\u7528\u904E\u6280\u80FD\u672A", needsTarget: true, needsText: false });
       }
       const fakeWindow = this.phase === "day_talk" || this.phase === "night";
       if (fakeWindow && seat.roleId === "decoy" && seat.fakeCharges > 0) {
-        actions.push({ action: "fake_plant", label: "\u653E\u4F86\u6E90\u672A\u6838", needsTarget: false, needsText: true });
+        actions.push({ action: "fake_plant", label: "\u653E\u4E00\u53E5\u5047\u6599", needsTarget: false, needsText: true });
         if (this.pins.some((pin) => !pin.unverified)) {
-          actions.push({ action: "fake_flag", label: "\u6A19\u505A\u5F85\u6838\u5BE6", needsTarget: true, needsText: false });
+          actions.push({ action: "fake_flag", label: "\u6A19\u505A\u672A\u6838\u5BE6", needsTarget: true, needsText: false });
         }
       }
       return actions;
@@ -1236,12 +1275,14 @@ var QuietZoneTrial = (() => {
     rng;
     phaseMs;
     fillAiOnCreate;
+    previewDeal;
     constructor(opts = {}) {
       this.timers = opts.timers ?? false;
       this.autoAi = opts.autoAi ?? true;
       this.rng = opts.rng ?? Math.random;
       this.phaseMs = opts.phaseMs ?? defaultPhaseMs;
       this.fillAiOnCreate = opts.fillAiOnCreate ?? false;
+      this.previewDeal = opts.previewDeal ?? false;
     }
     /** Drop every room and pending phase timer. Used when a trial tab closes. */
     shutdown() {
@@ -1365,6 +1406,7 @@ var QuietZoneTrial = (() => {
         return;
       }
       if (this.fillAiOnCreate) engine.fillWithAi();
+      if (this.previewDeal) engine.previewDeal();
       const code = this.freshCode();
       const room = { code, engine };
       this.rooms.set(code, room);
@@ -1546,6 +1588,7 @@ var QuietZoneTrial = (() => {
       timers: opts.timers ?? true,
       autoAi: true,
       fillAiOnCreate: true,
+      previewDeal: true,
       rng: opts.rng,
       phaseMs: (phase) => {
         if (phase === "lobby" || phase === "ended") return null;

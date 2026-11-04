@@ -59,6 +59,9 @@ test("solo trial fills 11 seats and plays a day into night", async () => {
     assert.equal(lobby.public.seats[0]?.isAi, false);
     assert.equal(lobby.public.seats[0]?.nickname, "夜歸人");
     assert.equal(lobby.private.isHost, true);
+    assert.ok(lobby.private.role, "trial lobby shows the dealt role before start");
+    const lobbyPub = JSON.stringify(lobby.public);
+    for (const roleId of ROLE_IDS) assert.equal(lobbyPub.includes(`"${roleId}"`), false);
     assert.equal(lobby.public.composition.lighthouse, 7);
     assert.equal(lobby.public.composition.silence, 3);
     assert.equal(lobby.public.composition.grey, 1);

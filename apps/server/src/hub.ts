@@ -38,6 +38,8 @@ export interface HubOptions {
   phaseMs?: (phase: Phase) => number | null;
   /** Trial rooms show the full AI table before Boot. Live rooms still fill on start. */
   fillAiOnCreate?: boolean;
+  /** Trial rooms deal the private role while still in the lobby. */
+  previewDeal?: boolean;
 }
 
 export class RoomHub {
@@ -49,6 +51,7 @@ export class RoomHub {
   private readonly rng: () => number;
   private readonly phaseMs: (phase: Phase) => number | null;
   private readonly fillAiOnCreate: boolean;
+  private readonly previewDeal: boolean;
 
   constructor(opts: HubOptions = {}) {
     this.timers = opts.timers ?? false;
@@ -56,6 +59,7 @@ export class RoomHub {
     this.rng = opts.rng ?? Math.random;
     this.phaseMs = opts.phaseMs ?? defaultPhaseMs;
     this.fillAiOnCreate = opts.fillAiOnCreate ?? false;
+    this.previewDeal = opts.previewDeal ?? false;
   }
 
   /** Drop every room and pending phase timer. Used when a trial tab closes. */
@@ -196,6 +200,7 @@ export class RoomHub {
       return;
     }
     if (this.fillAiOnCreate) engine.fillWithAi();
+    if (this.previewDeal) engine.previewDeal();
     const code = this.freshCode();
     const room: RoomRec = { code, engine };
     this.rooms.set(code, room);

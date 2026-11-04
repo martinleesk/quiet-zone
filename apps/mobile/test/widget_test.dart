@@ -202,7 +202,7 @@ void main() {
     expect(find.byKey(const Key("scene-day_talk")), findsOneWidget);
     expect(find.byKey(const Key("role-bust:${ArtCatalog.cover}")), findsOneWidget);
     expect(find.text("送出"), findsOneWidget);
-    expect(find.text("掩護員 · 燈塔網"), findsOneWidget);
+    expect(find.text("掩護 · 燈塔網"), findsOneWidget);
 
     await tester.pumpWidget(_app(_snapshot(
       phase: "day_talk",
@@ -279,12 +279,13 @@ void main() {
         EchoRemnant(nickname: "乙", factionLabel: "消音組", text: "第二"),
       ],
     )));
-    expect(find.text("剩餘 12 秒"), findsOneWidget);
+    expect(find.byKey(const Key("phase-clock")), findsOneWidget);
+    expect(find.text("12"), findsOneWidget);
     expect(find.text("甲 · 燈塔網"), findsOneWidget);
     expect(find.text("乙 · 消音組"), findsOneWidget);
     expect(find.text("AI"), findsOneWidget);
     expect(find.text("燈亮討論"), findsOneWidget);
-    expect(find.text("掩護員 · 燈塔網"), findsOneWidget);
+    expect(find.text("掩護 · 燈塔網"), findsOneWidget);
     expect(find.text("待核實｜真釘"), findsOneWidget);
     expect(find.text("釘選殘訊"), findsOneWidget);
 
@@ -323,7 +324,7 @@ void main() {
     )));
     await tester.pump();
     expect(find.text("臨時掩護"), findsOneWidget);
-    expect(find.text("提交行動"), findsOneWidget);
+    expect(find.text("發動"), findsOneWidget);
 
     await tester.pumpWidget(_app(_snapshot(
       phase: "ended",
@@ -382,7 +383,7 @@ void main() {
     expect(find.byKey(const Key("scene-night")), findsOneWidget);
     expect(find.byKey(const Key("seat-ring")), findsOneWidget);
     expect(find.text("臨時掩護"), findsOneWidget);
-    expect(find.text("提交行動"), findsOneWidget);
+    expect(find.text("發動"), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(_app(_snapshot(
@@ -431,25 +432,25 @@ void main() {
       tester,
       find.text("勝負次序：灰頻獨贏，然後消音組，然後燈塔網。11 席係燈塔網 7、消音組 3、灰頻 1。閒職會派兩席，圖鑑只列一次。"),
     );
-    for (final name in const ["線報員", "掃頻員", "掩護員", "回波師", "通聯官", "燈塔閒職", "消音手", "假訊員", "影內應", "孤證客"]) {
+    for (final name in const ["線報", "掃頻", "掩護", "回波", "通聯", "守燈", "消音手", "假訊", "影燈", "孤證"]) {
       _expectFullyVisible(tester, find.text(name));
     }
-    expect(find.text("釘選殘訊：每個燈亮可釘一條公開資訊上時間線，唔佔發言格。"), findsNothing);
+    expect(find.text("燈亮可以釘一句公開線報，唔佔你嘅發言。"), findsNothing);
 
     await tester.tap(find.byKey(const Key("codex-role:warrant")));
     await tester.pumpAndSettle();
-    _expectFullyVisible(tester, find.text("私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。"));
-    _expectFullyVisible(tester, find.text("孤證客仍在場，正確標記消音組達 2 即獨贏。"));
+    _expectFullyVisible(tester, find.text("暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。"));
+    _expectFullyVisible(tester, find.text("孤證仍然在場，暗標中兩個消音就獨贏。"));
     _expectFullyVisible(tester, find.text("點贏"));
     expect(tester.takeException(), isNull);
 
-    const coverSkill = "臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。";
+    const coverSkill = "熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。";
     await tester.pumpWidget(_app(_snapshot(
       phase: "day_talk",
       phaseLabel: "燈亮討論",
       role: const PrivateRole(
         id: "cover",
-        name: "掩護員",
+        name: "掩護",
         faction: "lighthouse",
         factionLabel: "燈塔網",
         skill: coverSkill,
@@ -463,7 +464,7 @@ void main() {
     _expectFullyVisible(tester, find.text("準備好"));
     expect(tester.takeException(), isNull);
 
-    const warrantSkill = "私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。";
+    const warrantSkill = "暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。";
     await tester.pumpWidget(_app(_snapshot(
       phase: "boot",
       phaseLabel: "開局抽身分",
@@ -589,7 +590,7 @@ GameSnapshot _snapshot({
       role: role ??
           const PrivateRole(
             id: "cover",
-            name: "掩護員",
+            name: "掩護",
             faction: "lighthouse",
             factionLabel: "燈塔網",
             skill: "臨時掩護：免疫該夜失聯。",

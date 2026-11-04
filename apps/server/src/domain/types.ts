@@ -93,6 +93,10 @@ export interface PrivateRole {
   faction: Faction;
   factionLabel: string;
   skill: string;
+  /** Short memory hook. Empty only for older packets. */
+  mnemonic: string;
+  /** When this skill is used, in plain language. */
+  when: string;
 }
 
 export type SkillActionName = "pin" | "link" | "fake_flag" | "fake_plant" | "mark";

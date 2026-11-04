@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 
 import "ai_badge.dart";
 import "art.dart";
+import "coach.dart";
 import "codex_page.dart";
 import "frame.dart";
 import "game_controller.dart";
@@ -35,7 +36,23 @@ class LobbyPage extends StatelessWidget {
           ),
           body: SafeArea(
             top: false,
-            child: landscape ? _landscape(context, snapshot, seats, isHost) : _portrait(context, snapshot, seats, isHost),
+            child: Stack(
+              children: [
+                landscape ? _landscape(context, snapshot, seats, isHost) : _portrait(context, snapshot, seats, isHost),
+                if (snapshot != null &&
+                    snapshot.private.role != null &&
+                    !controller.dismissedCoaches.contains("role"))
+                  RoleRevealCard(
+                    mine: snapshot.private,
+                    onStart: () {
+                      controller.ready();
+                      controller.startGame();
+                      controller.dismissCoach("role");
+                    },
+                    onLater: () => controller.dismissCoach("role"),
+                  ),
+              ],
+            ),
           ),
         );
       },
@@ -69,6 +86,8 @@ class LobbyPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             children: [
               Text(roomLine(seats)),
+              const SizedBox(height: 6),
+              const CoachLine(phase: "lobby"),
               const SizedBox(height: 16),
               if (controller.error != null) _error(),
               for (final seat in seats)
@@ -104,6 +123,8 @@ class LobbyPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(roomLine(seats)),
+                const SizedBox(height: 6),
+                const CoachLine(phase: "lobby"),
               ],
             ),
           ),
