@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { RULES } from "./config/rules.js";
 import { GameEngine } from "./domain/engine.js";
 import type { NightActionName, Phase, PrivateSnapshot, PublicSnapshot } from "./domain/types.js";
@@ -37,6 +36,8 @@ export interface HubOptions {
   autoAi?: boolean;
   rng?: () => number;
   phaseMs?: (phase: Phase) => number | null;
+  /** Trial rooms show the full AI table before Boot. Live rooms still fill on start. */
+  fillAiOnCreate?: boolean;
 }
 
 export class RoomHub {
@@ -47,12 +48,22 @@ export class RoomHub {
   private readonly autoAi: boolean;
   private readonly rng: () => number;
   private readonly phaseMs: (phase: Phase) => number | null;
+  private readonly fillAiOnCreate: boolean;
 
   constructor(opts: HubOptions = {}) {
     this.timers = opts.timers ?? false;
     this.autoAi = opts.autoAi ?? true;
     this.rng = opts.rng ?? Math.random;
     this.phaseMs = opts.phaseMs ?? defaultPhaseMs;
+    this.fillAiOnCreate = opts.fillAiOnCreate ?? false;
+  }
+
+  /** Drop every room and pending phase timer. Used when a trial tab closes. */
+  shutdown(): void {
+    for (const room of this.rooms.values()) this.clearTimer(room);
+    this.rooms.clear();
+    this.playerRoom.clear();
+    this.sinks.clear();
   }
 
   bind(playerId: string, sink: (msg: ServerMsg) => void): void {
@@ -184,6 +195,7 @@ export class RoomHub {
       this.fail(playerId, joined.code, joined.message);
       return;
     }
+    if (this.fillAiOnCreate) engine.fillWithAi();
     const code = this.freshCode();
     const room: RoomRec = { code, engine };
     this.rooms.set(code, room);
@@ -307,8 +319,8 @@ export class RoomHub {
       room.timer = undefined;
       if (room.engine.getPhase() === "ended") return;
       room.engine.advance();
-      this.broadcast(room);
       this.arm(room);
+      this.broadcast(room);
     }, ms);
   }
 
@@ -351,8 +363,19 @@ export class RoomHub {
       for (let i = 0; i < 4; i++) code += ALPHABET[Math.floor(this.rng() * ALPHABET.length)] ?? "A";
       if (!this.rooms.has(code)) return code;
     }
-    return randomUUID().replace(/-/g, "").slice(0, 4).toUpperCase();
+    return randomToken().replace(/-/g, "").slice(0, 4).toUpperCase();
   }
+}
+
+function randomToken(): string {
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj?.randomUUID) return cryptoObj.randomUUID();
+  if (cryptoObj?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    cryptoObj.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(16)}${Math.random().toString(16).slice(2)}`;
 }
 
 function defaultPhaseMs(phase: Phase): number | null {

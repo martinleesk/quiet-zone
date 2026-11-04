@@ -12,6 +12,11 @@ class LobbyPage extends StatelessWidget {
 
   final GameController controller;
 
+  static String roomLine(List<PublicSeat> seats) {
+    if (seats.length >= 11) return "標準 Mode · 11／11 席。真人準備好，房主就可以開始。";
+    return "標準 Mode · ${seats.length}／11 席。齊人準備後，房主先可以開。空位由 AI 補。";
+  }
+
   @override
   Widget build(BuildContext context) {
     final snapshot = controller.snapshot;
@@ -63,7 +68,7 @@ class LobbyPage extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             children: [
-              Text("標準 Mode · ${seats.length}／11 席。齊人準備後，房主先可以開。空位由 AI 補。"),
+              Text(roomLine(seats)),
               const SizedBox(height: 16),
               if (controller.error != null) _error(),
               for (final seat in seats)
@@ -98,7 +103,7 @@ class LobbyPage extends StatelessWidget {
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(letterSpacing: 6, height: 1.05),
                 ),
                 const SizedBox(height: 8),
-                Text("標準 Mode · ${seats.length}／11 席。齊人準備後，房主先可以開。空位由 AI 補。"),
+                Text(roomLine(seats)),
               ],
             ),
           ),

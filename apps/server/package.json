@@ -8,8 +8,9 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "test": "tsx --test src/domain/rules.test.ts src/domain/engine.test.ts src/domain/skills.test.ts src/domain/reclaim.test.ts src/domain/lobby.test.ts src/domain/summary.test.ts src/hub.test.ts src/server.test.ts src/demo/script.test.ts",
-    "demo": "tsx src/demo.ts"
+    "test": "npm run build:trial && tsx --test src/domain/rules.test.ts src/domain/engine.test.ts src/domain/skills.test.ts src/domain/reclaim.test.ts src/domain/lobby.test.ts src/domain/summary.test.ts src/hub.test.ts src/server.test.ts src/demo/script.test.ts src/trial/session.test.ts",
+    "demo": "tsx src/demo.ts",
+    "build:trial": "esbuild src/trial/browser.ts --bundle --format=iife --global-name=QuietZoneTrial --outfile=../../docs/trial/engine.js && cp ../../docs/trial/engine.js ../mobile/web/engine.js"
   },
   "engines": {
     "node": ">=20"
@@ -22,6 +23,7 @@
     "@types/express": "^4.17.21",
     "@types/node": "^22.10.0",
     "@types/ws": "^8.18.1",
+    "esbuild": "^0.28.2",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
