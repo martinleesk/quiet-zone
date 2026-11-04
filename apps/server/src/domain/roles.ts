@@ -13,6 +13,7 @@ export const FACTION_LABEL: Record<Faction, string> = {
   grey: "灰頻",
 };
 
+/** Client mirror: `apps/mobile/lib/src/role_catalog.dart`. Keep skill text identical. */
 export const ROLES: Record<RoleId, RoleDef> = {
   tip: {
     id: "tip",
