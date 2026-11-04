@@ -19,13 +19,13 @@
 | RoleId | 角色 | 檔 | 性別 |
 | --- | --- | --- | --- |
 | warrant | 孤證客 | `assets/art/roles/warrant.jpg` | 女 |
-| silencer | 消音手 | `assets/art/roles/silencer.jpg` | 男 |
+| silencer | 消音手 | `assets/art/roles/silencer.jpg` | 男，紫色闊身帽衫 |
 | tip | 線報員 | `assets/art/roles/tip.jpg` | 女 |
 | cover | 掩護員 | `assets/art/roles/cover.jpg` | 男 |
 | decoy | 假訊員 | `assets/art/roles/decoy.jpg` | 女 |
 | sweep | 掃頻員 | `assets/art/roles/sweep.jpg` | 男 |
 | echo | 回波師 | `assets/art/roles/echo.jpg` | 女 |
-| link | 通聯官 | `assets/art/roles/link.jpg` | 男 |
+| link | 通聯官 | `assets/art/roles/link.jpg` | 男，黑風衣、金耳麥、筆記 |
 | plant | 影內應 | `assets/art/roles/plant.jpg` | 女 |
 | civilian | 燈塔閒職 | `civilian_f.jpg` 預設，`civilian_m.jpg` 交替 | 女預設 |
 
