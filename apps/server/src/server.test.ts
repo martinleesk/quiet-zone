@@ -32,6 +32,12 @@ test("health and websocket create / join / start", async () => {
     const denied = await guest.next();
     assert.equal(denied.type, "error");
 
+    host.socket.send(JSON.stringify({ type: "ready" }));
+    await host.nextState();
+    guest.socket.send(JSON.stringify({ type: "ready" }));
+    await guest.nextState();
+    await host.nextState();
+
     host.socket.send(JSON.stringify({ type: "start_game" }));
     const started = await host.nextState();
     assert.equal(started.public.seats.length, 11);

@@ -141,6 +141,7 @@ test("hub reclaim binds the new socket to the old seat", () => {
   const seen: ServerMsg[] = [];
   hub.bind("host", (msg) => seen.push(msg));
   hub.handle("host", { type: "create_room", nickname: "主持人" });
+  hub.handle("host", { type: "ready" });
   hub.handle("host", { type: "start_game" });
   const started = [...seen].reverse().find((msg) => msg.type === "state");
   assert.ok(started && started.type === "state");

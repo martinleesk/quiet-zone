@@ -4,6 +4,14 @@ import "ai_badge.dart";
 import "game_controller.dart";
 import "protocol.dart";
 
+const silenceTemplates = <String>[
+  "今夜我建議失聯一個燈塔席。",
+  "可能有掩護，換一個目標。",
+  "我跟組內嘅選擇。",
+  "今輪跳過，唔好暴露。",
+  "小心灰頻，唔好亂送頭。",
+];
+
 const talkTemplates = <String>[
   "我暫時未有實錘。",
   "我傾向跟多數。",
@@ -51,6 +59,7 @@ class _TablePageState extends State<TablePage> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               children: [
+                ..._tips(mine),
                 Text(public.banner),
                 const SizedBox(height: 8),
                 Text(
@@ -127,6 +136,53 @@ class _TablePageState extends State<TablePage> {
         ],
       ),
     );
+  }
+
+  List<Widget> _silenceChannel(PublicView public, PrivateView mine) {
+    if (mine.role?.faction != "silence" || public.phase != "night") return const [];
+    return [
+      const Text("消音組夜訊。只可以用模板，唔會公開。"),
+      const SizedBox(height: 6),
+      Wrap(
+        spacing: 6,
+        children: [
+          for (final line in silenceTemplates)
+            ActionChip(
+              label: Text(line),
+              onPressed: () => widget.controller.silence(line),
+            ),
+        ],
+      ),
+      for (final note in mine.silenceChannel)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text("${note.nickname}：${note.text}"),
+        ),
+      const SizedBox(height: 8),
+    ];
+  }
+
+  List<Widget> _tips(PrivateView mine) {
+    final visible = mine.tips.where((tip) => !widget.controller.dismissedTips.contains(tip.id));
+    return [
+      for (final tip in visible)
+        Card(
+          color: const Color(0xFF243044),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+            child: Row(
+              children: [
+                Expanded(child: Text(tip.text)),
+                IconButton(
+                  onPressed: () => widget.controller.dismissTip(tip.id),
+                  icon: const Icon(Icons.close, size: 18),
+                  tooltip: "收起提示",
+                ),
+              ],
+            ),
+          ),
+        ),
+    ];
   }
 
   List<Widget> _skillControls(PublicView public, PrivateView mine) {
@@ -340,6 +396,7 @@ class _TablePageState extends State<TablePage> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              ..._silenceChannel(public, mine),
               ..._skillControls(public, mine),
               Text(mine.skillActions.isEmpty ? "你今夜沒有主動技能。" : "可以改標記，或者放假訊。"),
               const SizedBox(height: 8),
@@ -353,6 +410,7 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            ..._silenceChannel(public, mine),
             ..._skillControls(public, mine),
             Wrap(
               spacing: 6,

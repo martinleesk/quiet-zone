@@ -30,7 +30,7 @@ class LobbyPage extends StatelessWidget {
             style: Theme.of(context).textTheme.displaySmall?.copyWith(letterSpacing: 6),
           ),
           const SizedBox(height: 8),
-          Text("標準 Mode · ${seats.length}／11 席。開始時會用 AI 補滿。"),
+          Text("標準 Mode · ${seats.length}／11 席。齊人準備後，房主先可以開。空位由 AI 補。"),
           const SizedBox(height: 16),
           if (controller.error != null)
             Padding(
@@ -41,16 +41,25 @@ class LobbyPage extends StatelessWidget {
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text("${seat.id}  ${seat.nickname}"),
-              trailing: seat.isAi ? const AiBadge() : const Text("真人"),
+              trailing: seat.isAi
+                  ? const AiBadge()
+                  : Text(seat.lobbyReady ? "已準備" : "未準備"),
             ),
           const SizedBox(height: 12),
+          FilledButton(
+            onPressed: (snapshot?.private.ready ?? false) ? null : controller.ready,
+            child: const Text("準備好"),
+          ),
+          const SizedBox(height: 8),
           if (isHost)
             FilledButton(
-              onPressed: controller.startGame,
+              onPressed: seats.isNotEmpty && seats.where((seat) => !seat.isAi).every((seat) => seat.lobbyReady)
+                  ? controller.startGame
+                  : null,
               child: const Text("開始封鎖（AI 補滿 11 席）"),
             )
           else
-            const Text("等房主開始。"),
+            const Text("等房主開始。開局之後房間會鎖定。"),
         ],
       ),
     );

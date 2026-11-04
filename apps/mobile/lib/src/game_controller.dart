@@ -19,6 +19,7 @@ class GameController extends ChangeNotifier {
   String? _reclaimToken;
   bool _leaving = false;
   bool _reclaiming = false;
+  final Set<String> dismissedTips = {};
 
   Future<void> createRoom(String url, String nickname) {
     _serverUrl = url.trim();
@@ -69,7 +70,14 @@ class GameController extends ChangeNotifier {
     });
   }
 
-  void ready() => _send({"type": "ready"});
+  void ready({bool ready = true}) => _send({"type": "ready", "ready": ready});
+
+  void silence(String text) => _send({"type": "silence", "text": text});
+
+  void dismissTip(String id) {
+    dismissedTips.add(id);
+    notifyListeners();
+  }
 
   Future<void> leave() async {
     _leaving = true;
