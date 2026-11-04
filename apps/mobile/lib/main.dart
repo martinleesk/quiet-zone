@@ -1,4 +1,7 @@
+import "dart:async";
+
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 
 import "src/game_controller.dart";
 import "src/home_page.dart";
@@ -6,7 +9,18 @@ import "src/lobby_page.dart";
 import "src/table_page.dart";
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  unawaited(lockQuietZoneLandscape());
   runApp(const QuietZoneApp());
+}
+
+/// Phones and tablets lock to landscape. Desktop follows the same preference.
+/// Installed web apps also read `orientation` in web/manifest.json.
+Future<void> lockQuietZoneLandscape() {
+  return SystemChrome.setPreferredOrientations(const [
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]);
 }
 
 class QuietZoneApp extends StatefulWidget {
@@ -20,6 +34,12 @@ class QuietZoneApp extends StatefulWidget {
 
 class _QuietZoneAppState extends State<QuietZoneApp> {
   late final GameController _controller = widget.controller ?? GameController();
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(lockQuietZoneLandscape());
+  }
 
   @override
   void dispose() {

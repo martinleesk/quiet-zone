@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:quiet_zone/main.dart";
 import "package:quiet_zone/src/art.dart";
@@ -105,6 +106,26 @@ void main() {
     expect(ArtCatalog.reservedFiles, contains(ArtCatalog.civilianM));
   });
 
+  testWidgets("locks the app to landscape orientations", (tester) async {
+    final orientations = <String>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == "SystemChrome.setPreferredOrientations") {
+        orientations.addAll((call.arguments as List).cast<String>());
+      }
+      return null;
+    });
+    addTearDown(() {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    await lockQuietZoneLandscape();
+
+    expect(orientations, [
+      "DeviceOrientation.landscapeLeft",
+      "DeviceOrientation.landscapeRight",
+    ]);
+  });
+
   testWidgets("home offers a private room", (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -113,6 +134,20 @@ void main() {
     expect(find.text("開私人房"), findsOneWidget);
     expect(find.text("用代碼加入"), findsOneWidget);
     expect(find.byKey(const Key("scene-home")), findsOneWidget);
+    expect(find.byKey(const Key("landscape-home")), findsNothing);
+  });
+
+  testWidgets("phone landscape home puts the day scene beside the room form", (tester) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(const QuietZoneApp());
+    expect(find.byKey(const Key("landscape-home")), findsOneWidget);
+    expect(find.byKey(const Key("scene-home")), findsOneWidget);
+    expect(find.text("消音區"), findsOneWidget);
+    expect(find.text("開私人房"), findsOneWidget);
+    expect(find.text("用代碼加入"), findsOneWidget);
+    expect(find.text("角色圖鑑"), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets("lobby keeps the room code on the day header", (tester) async {
@@ -123,6 +158,7 @@ void main() {
     expect(find.text("ABCD"), findsOneWidget);
     expect(find.text("準備好"), findsOneWidget);
     expect(find.text("開始封鎖（AI 補滿 11 席）"), findsOneWidget);
+    expect(find.byKey(const Key("landscape-lobby")), findsOneWidget);
   });
 
   testWidgets("role reveal shows the 3D bust and keeps an unknown role on the faction circle", (tester) async {
@@ -300,6 +336,78 @@ void main() {
     expect(find.textContaining("灰頻獨贏"), findsOneWidget);
     expect(find.textContaining("消音手"), findsOneWidget);
   });
+
+  testWidgets("phone landscape boot, day, and night use a wide stage", (tester) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "boot",
+      phaseLabel: "開局抽身分",
+      role: const PrivateRole(
+        id: "warrant",
+        name: "孤證客",
+        faction: "grey",
+        factionLabel: "灰頻",
+        skill: "私密標記消音組。",
+      ),
+    )));
+    expect(find.byKey(const Key("boot-reveal")), findsOneWidget);
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.warrant}")), findsOneWidget);
+    expect(find.text("我睇完身分"), findsOneWidget);
+    expect(find.text("孤證客 · 灰頻"), findsOneWidget);
+    expect(find.byKey(const Key("scene-boot")), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(_app(_snapshot(phase: "day_talk", phaseLabel: "燈亮討論")));
+    await tester.pump();
+    expect(find.byKey(const Key("landscape-table")), findsOneWidget);
+    expect(find.byKey(const Key("scene-day_talk")), findsOneWidget);
+    expect(find.byKey(const Key("seat-ring")), findsOneWidget);
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.cover}")), findsOneWidget);
+    expect(find.byKey(const Key("seat-bust:${ArtCatalog.cover}")), findsOneWidget);
+    expect(find.byKey(const Key("seat-placeholder:s2")), findsOneWidget);
+    expect(find.text("送出"), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "night",
+      phaseLabel: "熄燈行動",
+      nightActions: const [
+        NightChoice(action: "cover", label: "臨時掩護", needsTarget: true),
+        NightChoice(action: "skip", label: "跳過今夜", needsTarget: false),
+      ],
+    )));
+    await tester.pump();
+    expect(find.byKey(const Key("scene-night")), findsOneWidget);
+    expect(find.byKey(const Key("seat-ring")), findsOneWidget);
+    expect(find.text("臨時掩護"), findsOneWidget);
+    expect(find.text("提交行動"), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "day_talk",
+      phaseLabel: "燈亮討論",
+      seats: const [
+        PublicSeat(id: "s1", nickname: "夜歸人", isAi: false, alive: true, sealed: false),
+        PublicSeat(id: "s2", nickname: "霧港燈", isAi: true, alive: true, sealed: false),
+        PublicSeat(id: "s3", nickname: "潮聲", isAi: true, alive: true, sealed: false),
+        PublicSeat(id: "s4", nickname: "北角", isAi: true, alive: true, sealed: false),
+        PublicSeat(id: "s5", nickname: "深水", isAi: true, alive: true, sealed: false),
+        PublicSeat(id: "s6", nickname: "啟德", isAi: true, alive: true, sealed: false),
+        PublicSeat(id: "s7", nickname: "西環", isAi: true, alive: false, sealed: false),
+        PublicSeat(id: "s8", nickname: "銅鑼", isAi: true, alive: true, sealed: true),
+        PublicSeat(id: "s9", nickname: "紅磡", isAi: true, alive: true, sealed: false),
+        PublicSeat(id: "s10", nickname: "荃灣", isAi: true, alive: true, sealed: false),
+        PublicSeat(id: "s11", nickname: "沙田", isAi: true, alive: true, sealed: false),
+      ],
+    )));
+    await tester.pump();
+    expect(find.byKey(const Key("seat-ring")), findsOneWidget);
+    expect(find.text("s11 沙田"), findsOneWidget);
+    expect(find.text("AI"), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 void _expectFaction(WidgetTester tester, Color color) {
@@ -329,6 +437,7 @@ GameSnapshot _snapshot({
   List<EchoRemnant> remnants = const [],
   List<SeatReveal> reveal = const [],
   PrivateRole? role,
+  List<PublicSeat>? seats,
 }) {
   return GameSnapshot(
     public: PublicView(
@@ -339,10 +448,11 @@ GameSnapshot _snapshot({
       night: phase == "night" ? 1 : 0,
       banner: "測試橫額",
       composition: const Composition(lighthouse: 7, silence: 3, grey: 1),
-      seats: const [
-        PublicSeat(id: "s1", nickname: "夜歸人", isAi: false, alive: true, sealed: false),
-        PublicSeat(id: "s2", nickname: "霧港燈", isAi: true, alive: true, sealed: false),
-      ],
+      seats: seats ??
+          const [
+            PublicSeat(id: "s1", nickname: "夜歸人", isAi: false, alive: true, sealed: false),
+            PublicSeat(id: "s2", nickname: "霧港燈", isAi: true, alive: true, sealed: false),
+          ],
       log: const ["公開組成已廣播。"],
       pins: pins,
       disconnects: 0,

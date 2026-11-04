@@ -9,6 +9,8 @@ flutter run
 
 先開 `apps/server`（`npm run dev`）。預設 WebSocket 係 `ws://127.0.0.1:8787/ws`；Android 模擬器用 `ws://10.0.2.2:8787/ws`。
 
+介面以橫向為主。Android、iOS 會鎖橫向；已安裝嘅 Web app 跟 `web/manifest.json` 嘅 `orientation: landscape`。
+
 遊戲規則唔喺呢度結算。客戶端只顯示伺服器落嚟嘅公開狀態同自己嘅私人包。
 
 美術同性別鎖定見 [ART.md](ART.md)。角色半身同燈亮／熄燈場景係風格化 3D 渲染。

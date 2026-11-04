@@ -6,7 +6,7 @@
     "background_color": "#0E141B",
     "theme_color": "#0E141B",
     "description": "消音區・封鎖夜",
-    "orientation": "portrait-primary",
+    "orientation": "landscape",
     "prefer_related_applications": false,
     "icons": [
         {

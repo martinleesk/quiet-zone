@@ -99,6 +99,28 @@ void main() {
     expect(find.textContaining("有消音痕跡"), findsOneWidget);
     expect(find.text("你嘅身分"), findsOneWidget);
   });
+
+  testWidgets("landscape codex lines factions up side by side", (tester) async {
+    await tester.binding.setSurfaceSize(const Size(844, 390));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(const QuietZoneApp());
+    await tester.tap(find.text("角色圖鑑"));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key("landscape-codex")), findsOneWidget);
+    expect(find.text("燈塔網"), findsWidgets);
+    expect(find.text("消音組"), findsWidgets);
+    expect(find.text("灰頻"), findsWidgets);
+    for (final role in kStandardRoles) {
+      expect(find.text(role.name), findsOneWidget, reason: role.name);
+      expect(find.text(role.skill), findsOneWidget, reason: role.id);
+    }
+    expect(find.byKey(const Key("codex-bust:${ArtCatalog.silencer}")), findsOneWidget);
+    expect(find.byKey(const Key("codex-bust:${ArtCatalog.civilianF}")), findsOneWidget);
+    expect(find.byKey(const Key("codex-bust:${ArtCatalog.civilianM}")), findsOneWidget);
+    expect(find.text("你嘅身分"), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 GameSnapshot _room({
