@@ -89,22 +89,17 @@ class LobbyPage extends StatelessWidget {
           flex: 4,
           child: SceneBackdrop.stage(
             phase: "lobby",
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 12, 20, 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Spacer(),
-                  Text("房間代碼", style: Theme.of(context).textTheme.labelLarge),
-                  const SizedBox(height: 4),
-                  SelectableText(
-                    snapshot?.public.code ?? "",
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(letterSpacing: 6),
-                  ),
-                  const SizedBox(height: 8),
-                  Text("標準 Mode · ${seats.length}／11 席。齊人準備後，房主先可以開。空位由 AI 補。"),
-                ],
-              ),
+            child: StageCopy(
+              children: [
+                Text("房間代碼", style: Theme.of(context).textTheme.labelLarge),
+                const SizedBox(height: 4),
+                SelectableText(
+                  snapshot?.public.code ?? "",
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(letterSpacing: 6, height: 1.05),
+                ),
+                const SizedBox(height: 8),
+                Text("標準 Mode · ${seats.length}／11 席。齊人準備後，房主先可以開。空位由 AI 補。"),
+              ],
             ),
           ),
         ),
@@ -129,11 +124,14 @@ class LobbyPage extends StatelessWidget {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: _actions(snapshot, seats, isHost),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 148),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: _actions(snapshot, seats, isHost),
+                  ),
                 ),
               ),
             ],
@@ -161,7 +159,7 @@ class LobbyPage extends StatelessWidget {
       if (isHost)
         FilledButton(
           onPressed: humansReady ? controller.startGame : null,
-          child: const Text("開始封鎖（AI 補滿 11 席）"),
+          child: const Text("開始封鎖（AI 補滿 11 席）", textAlign: TextAlign.center),
         )
       else
         const Text("等房主開始。開局之後房間會鎖定。"),

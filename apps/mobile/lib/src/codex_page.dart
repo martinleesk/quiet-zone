@@ -1,8 +1,13 @@
+import "dart:math" as math;
+
 import "package:flutter/material.dart";
 
 import "art.dart";
 import "frame.dart";
 import "role_catalog.dart";
+
+const _rules = "公開規則。開局前或者局中都可以睇。撳一個角色先睇陣營同技能，唔會顯示你或者席上任何人嘅私人身分。";
+const _order = "勝負次序：灰頻獨贏，然後消音組，然後燈塔網。11 席係燈塔網 7、消音組 3、灰頻 1。閒職會派兩席，圖鑑只列一次。";
 
 /// Public Standard Mode rulebook. Safe to open before a room or over a live table.
 void openRoleCodex(BuildContext context) {
@@ -11,16 +16,60 @@ void openRoleCodex(BuildContext context) {
   );
 }
 
-class RoleCodexPage extends StatelessWidget {
+class RoleCodexPage extends StatefulWidget {
   const RoleCodexPage({super.key});
+
+  @override
+  State<RoleCodexPage> createState() => _RoleCodexPageState();
+}
+
+class _RoleCodexPageState extends State<RoleCodexPage> {
+  CodexRole? _selected;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final landscape = preferLandscape(constraints);
         return Scaffold(
-          appBar: AppBar(title: const Text("角色圖鑑")),
-          body: preferLandscape(constraints) ? const _LandscapeCodex() : const _PortraitCodex(),
+          appBar: AppBar(
+            toolbarHeight: landscape ? 48 : null,
+            title: const Text("角色圖鑑"),
+          ),
+          body: SafeArea(
+            top: false,
+            child: landscape
+                ? _LandscapeCodex(
+                    selected: _selected,
+                    onSelect: (role) => setState(() => _selected = role),
+                    onClose: () => setState(() => _selected = null),
+                  )
+                : _PortraitCodex(onSelect: (role) => _openSheet(context, role)),
+          ),
+        );
+      },
+    );
+  }
+
+  void _openSheet(BuildContext context, CodexRole role) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF17202A),
+      showDragHandle: true,
+      builder: (sheetContext) {
+        final height = MediaQuery.sizeOf(sheetContext).height;
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: height * 0.85),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: _RoleCodexDetail(
+                role: role,
+                onClose: () => Navigator.of(sheetContext).pop(),
+              ),
+            ),
+          ),
         );
       },
     );
@@ -28,7 +77,9 @@ class RoleCodexPage extends StatelessWidget {
 }
 
 class _PortraitCodex extends StatelessWidget {
-  const _PortraitCodex();
+  const _PortraitCodex({required this.onSelect});
+
+  final ValueChanged<CodexRole> onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -36,15 +87,15 @@ class _PortraitCodex extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
       children: [
         const _CodexIntro(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         for (final group in kCodexFactions) ...[
-          _FactionHeader(group: group),
+          _FactionLabel(group: group, large: true),
           const SizedBox(height: 8),
           for (final role in group.roles) ...[
-            _RoleCodexCard(role: role),
+            _RoleTile(role: role, wide: true, onTap: () => onSelect(role)),
             const SizedBox(height: 8),
           ],
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
         ],
       ],
     );
@@ -52,26 +103,91 @@ class _PortraitCodex extends StatelessWidget {
 }
 
 class _LandscapeCodex extends StatelessWidget {
-  const _LandscapeCodex();
+  const _LandscapeCodex({
+    required this.selected,
+    required this.onSelect,
+    required this.onClose,
+  });
+
+  final CodexRole? selected;
+  final ValueChanged<CodexRole> onSelect;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      key: const Key("landscape-codex"),
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: _CodexIntro(compact: true),
-        ),
-        Expanded(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final group in kCodexFactions) Expanded(child: _FactionColumn(group: group)),
-            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final panel = selected == null ? 0.0 : math.min(300.0, constraints.maxWidth * 0.42);
+        return Row(
+          key: const Key("landscape-codex"),
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: _LandscapeOverview(selectedId: selected?.id, onSelect: onSelect),
+            ),
+            if (selected != null)
+              SizedBox(
+                width: panel,
+                child: DecoratedBox(
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF121A22),
+                    border: Border(left: BorderSide(color: Color(0xFF3A4A5C))),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(14, 6, 12, 10),
+                    child: _RoleCodexDetail(role: selected!, onClose: onClose),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LandscapeOverview extends StatelessWidget {
+  const _LandscapeOverview({required this.selectedId, required this.onSelect});
+
+  final String? selectedId;
+  final ValueChanged<CodexRole> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = kCodexFactions.first;
+    final rest = kCodexFactions.skip(1).toList();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: math.max(0, constraints.maxHeight - 14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _CodexIntro(compact: true),
+                const SizedBox(height: 6),
+                _FactionBand(group: primary, selectedId: selectedId, onSelect: onSelect),
+                if (rest.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var i = 0; i < rest.length; i++) ...[
+                        if (i > 0) const SizedBox(width: 8),
+                        Expanded(
+                          flex: rest[i].roles.length,
+                          child: _FactionBand(group: rest[i], selectedId: selectedId, onSelect: onSelect),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -87,141 +203,253 @@ class _CodexIntro extends StatelessWidget {
       "標準 Mode",
       style: Theme.of(context).textTheme.titleMedium?.copyWith(color: const Color(0xFFE7C27A)),
     );
-    const rules = Text("公開規則。開局前或者局中都可以睇。呢度只列角色同技能，唔會顯示你或者席上任何人嘅私人身分。");
-    const order = Text("勝負次序：灰頻獨贏，然後消音組，然後燈塔網。11 席係燈塔網 7、消音組 3、灰頻 1。閒職會派兩席，圖鑑只列一次。");
-    if (!compact) {
-      return const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _GoldTitle(),
-          SizedBox(height: 6),
-          rules,
-          SizedBox(height: 6),
-          order,
-        ],
-      );
-    }
+    final rules = Text(_rules, style: TextStyle(height: compact ? 1.25 : null));
+    final order = Text(_order, style: TextStyle(height: compact ? 1.25 : null));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         title,
-        const SizedBox(height: 4),
+        SizedBox(height: compact ? 2 : 6),
         rules,
-        const SizedBox(height: 2),
+        SizedBox(height: compact ? 2 : 6),
         order,
       ],
     );
   }
 }
 
-class _GoldTitle extends StatelessWidget {
-  const _GoldTitle();
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      "標準 Mode",
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(color: const Color(0xFFE7C27A)),
-    );
-  }
-}
-
-class _FactionColumn extends StatelessWidget {
-  const _FactionColumn({required this.group});
+class _FactionLabel extends StatelessWidget {
+  const _FactionLabel({required this.group, this.large = false});
 
   final CodexFactionGroup group;
+  final bool large;
 
   @override
   Widget build(BuildContext context) {
     final accent = factionAccent(group.id);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(group.label, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: accent)),
-          Text(group.blurb, style: Theme.of(context).textTheme.bodySmall),
-          const SizedBox(height: 6),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  for (final role in group.roles) ...[
-                    _RoleCodexCard(role: role, dense: true),
-                    const SizedBox(height: 6),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+    final style = large ? Theme.of(context).textTheme.titleLarge : Theme.of(context).textTheme.titleSmall;
+    return Text(group.label, style: style?.copyWith(color: accent, fontWeight: FontWeight.w700));
   }
 }
 
-class _FactionHeader extends StatelessWidget {
-  const _FactionHeader({required this.group});
+class _FactionBand extends StatelessWidget {
+  const _FactionBand({
+    required this.group,
+    required this.selectedId,
+    required this.onSelect,
+  });
 
   final CodexFactionGroup group;
+  final String? selectedId;
+  final ValueChanged<CodexRole> onSelect;
 
   @override
   Widget build(BuildContext context) {
-    final accent = factionAccent(group.id);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(group.label, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: accent)),
-        const SizedBox(height: 2),
-        Text(group.blurb),
+        _FactionLabel(group: group),
+        const SizedBox(height: 4),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final count = math.max(1, group.roles.length);
+            const spacing = 6.0;
+            final columns = math.max(1, math.min(count, (constraints.maxWidth / 78).floor()));
+            final gaps = spacing * (columns - 1);
+            final tileW = math.max(0.0, ((constraints.maxWidth - gaps) / columns).floorToDouble());
+            return Wrap(
+              spacing: spacing,
+              runSpacing: spacing,
+              children: [
+                for (final role in group.roles)
+                  SizedBox(
+                    width: tileW,
+                    child: _RoleTile(
+                      role: role,
+                      selected: role.id == selectedId,
+                      onTap: () => onSelect(role),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
       ],
     );
   }
 }
 
-class _RoleCodexCard extends StatelessWidget {
-  const _RoleCodexCard({required this.role, this.dense = false});
+class _RoleTile extends StatelessWidget {
+  const _RoleTile({
+    required this.role,
+    required this.onTap,
+    this.selected = false,
+    this.wide = false,
+  });
 
   final CodexRole role;
-  final bool dense;
+  final VoidCallback onTap;
+  final bool selected;
+  final bool wide;
 
   @override
   Widget build(BuildContext context) {
     final accent = factionAccent(role.faction);
-    final bustW = dense ? 52.0 : 72.0;
-    final bustH = dense ? 68.0 : 96.0;
-    return Card(
+    final name = Text(
+      role.name,
+      textAlign: wide ? TextAlign.start : TextAlign.center,
+      softWrap: true,
+      style: Theme.of(context).textTheme.bodyMedium,
+    );
+    return Material(
       color: const Color(0xFF17202A),
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: EdgeInsets.all(dense ? 8 : 12),
-        child: Row(
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        key: Key("codex-role:${role.id}"),
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(wide ? 8 : 4),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: selected ? accent : const Color(0xFF3A4A5C), width: selected ? 2 : 1),
+          ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final bustH = wide ? 72.0 : 52.0;
+              final gap = role.id == "civilian" ? 4.0 : 0.0;
+              final slots = role.id == "civilian" ? 2 : 1;
+              final bustW = math.max(0.0, math.min(wide ? 54.0 : 44.0, (constraints.maxWidth - gap * (slots - 1)) / slots));
+              final busts = _RoleBusts(role: role, accent: accent, width: bustW, height: bustH);
+              if (wide) {
+                return Row(
+                  children: [
+                    busts,
+                    const SizedBox(width: 10),
+                    Expanded(child: name),
+                  ],
+                );
+              }
+              return Column(
+                children: [
+                  busts,
+                  const SizedBox(height: 4),
+                  name,
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleBusts extends StatelessWidget {
+  const _RoleBusts({
+    required this.role,
+    required this.accent,
+    required this.width,
+    required this.height,
+    this.tagged = true,
+  });
+
+  final CodexRole role;
+  final Color accent;
+  final double width;
+  final double height;
+  final bool tagged;
+
+  @override
+  Widget build(BuildContext context) {
+    if (role.id != "civilian") {
+      return RoleBust(
+        roleId: role.id,
+        accent: accent,
+        width: width,
+        height: height,
+        padding: EdgeInsets.zero,
+        tagged: tagged,
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        RoleBust(
+          roleId: role.id,
+          accent: accent,
+          width: width,
+          height: height,
+          padding: const EdgeInsets.only(right: 4),
+          tagged: tagged,
+        ),
+        RoleBust(
+          roleId: role.id,
+          accent: accent,
+          asset: ArtCatalog.civilianM,
+          width: width,
+          height: height,
+          padding: EdgeInsets.zero,
+          tagged: tagged,
+        ),
+      ],
+    );
+  }
+}
+
+class _RoleCodexDetail extends StatelessWidget {
+  const _RoleCodexDetail({required this.role, required this.onClose});
+
+  final CodexRole role;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final group = kCodexFactions.firstWhere((item) => item.id == role.faction);
+    final accent = factionAccent(role.faction);
+    return Column(
+      key: const Key("codex-detail"),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            RoleBust(roleId: role.id, accent: accent, width: bustW, height: bustH),
-            if (role.id == "civilian")
-              RoleBust(
-                roleId: role.id,
-                accent: accent,
-                asset: ArtCatalog.civilianM,
-                width: bustW,
-                height: bustH,
-              ),
+            _RoleBusts(role: role, accent: accent, width: 48, height: 64, tagged: false),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(role.name, style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 2),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(role.name, softWrap: true, style: Theme.of(context).textTheme.titleMedium),
+                      ),
+                      IconButton(
+                        tooltip: "關閉詳情",
+                        visualDensity: VisualDensity.compact,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                        onPressed: onClose,
+                        icon: const Icon(Icons.close, size: 18),
+                      ),
+                    ],
+                  ),
                   Text(factionLabelOf(role.faction), style: TextStyle(color: accent)),
-                  const SizedBox(height: 6),
-                  Text(role.skill),
                 ],
               ),
             ),
           ],
         ),
-      ),
+        const SizedBox(height: 8),
+        Text(role.skill, softWrap: true),
+        const SizedBox(height: 8),
+        Text("點贏", style: Theme.of(context).textTheme.labelLarge?.copyWith(color: accent)),
+        const SizedBox(height: 2),
+        Text(group.blurb, softWrap: true),
+      ],
     );
   }
 }
@@ -248,6 +476,8 @@ class RoleBust extends StatelessWidget {
     this.asset,
     this.width = 72,
     this.height = 96,
+    this.padding = const EdgeInsets.only(right: 12),
+    this.tagged = true,
   });
 
   final String roleId;
@@ -255,15 +485,17 @@ class RoleBust extends StatelessWidget {
   final String? asset;
   final double width;
   final double height;
+  final EdgeInsets padding;
+  final bool tagged;
 
   @override
   Widget build(BuildContext context) {
     final path = asset ?? roleBustAsset(roleId);
     if (path == null) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(right: 12),
+      padding: padding,
       child: ClipRRect(
-        key: Key("codex-bust:$path"),
+        key: tagged ? Key("codex-bust:$path") : null,
         borderRadius: BorderRadius.circular(8),
         child: Image.asset(
           path,

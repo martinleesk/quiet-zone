@@ -1,3 +1,5 @@
+import "dart:math" as math;
+
 import "package:flutter/material.dart";
 
 import "ai_badge.dart";
@@ -76,7 +78,10 @@ class _TablePageState extends State<TablePage> {
           TextButton(onPressed: widget.controller.leave, child: const Text("離開")),
         ],
       ),
-      body: landscape ? _landscapeBody(public, mine) : _portraitBody(public, mine),
+      body: SafeArea(
+        top: false,
+        child: landscape ? _landscapeBody(public, mine) : _portraitBody(public, mine),
+      ),
     );
   }
 
@@ -145,16 +150,16 @@ class _TablePageState extends State<TablePage> {
             color: const Color(0xF20E141B),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final actionMax = (constraints.maxHeight * 0.7).clamp(160.0, 300.0);
+                final actionMax = math.max(0.0, constraints.maxHeight * 0.56);
                 return Column(
                   children: [
                     Expanded(
                       child: ListView(
-                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                        padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
                         children: [
-                          ..._statusBlock(public, mine),
+                          ..._statusBlock(public, mine, compact: true),
                           ..._recordBlock(public),
-                          ..._channelBlock(public, mine),
+                          ..._channelBlock(public, mine, compact: true),
                         ],
                       ),
                     ),
@@ -162,8 +167,14 @@ class _TablePageState extends State<TablePage> {
                     ConstrainedBox(
                       constraints: BoxConstraints(maxHeight: actionMax),
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-                        child: _actions(public, mine),
+                        padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: _actions(public, mine, sideBySide: true),
+                        ),
                       ),
                     ),
                   ],
@@ -177,21 +188,26 @@ class _TablePageState extends State<TablePage> {
   }
 
   Widget _stagePane(PublicView public, PrivateView mine) {
-    final stage = Column(
-      children: [
-        Expanded(
-          child: _WideTable(
-            seats: public.seats,
-            mineSeatId: mine.seatId,
-            roleFor: (seat) => _knownRoleId(public, mine, seat),
-          ),
-        ),
-        if (mine.role != null)
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 132),
-            child: SingleChildScrollView(child: _landscapeIdentity(mine)),
-          ),
-      ],
+    final stage = LayoutBuilder(
+      builder: (context, constraints) {
+        final identityCap = math.max(0.0, constraints.maxHeight * 0.48);
+        return Column(
+          children: [
+            Expanded(
+              child: _WideTable(
+                seats: public.seats,
+                mineSeatId: mine.seatId,
+                roleFor: (seat) => _knownRoleId(public, mine, seat),
+              ),
+            ),
+            if (mine.role != null)
+              ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: identityCap),
+                child: SingleChildScrollView(child: _landscapeIdentity(mine)),
+              ),
+          ],
+        );
+      },
     );
     if (!ArtCatalog.showsBackdrop(public.phase)) {
       return ColoredBox(color: const Color(0xFF0E141B), child: stage);
@@ -205,7 +221,7 @@ class _TablePageState extends State<TablePage> {
       key: const Key("boot-reveal"),
       color: const Color(0xFF0E141B),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
         child: Row(
           children: [
             Expanded(
@@ -213,8 +229,14 @@ class _TablePageState extends State<TablePage> {
                   ? const Center(child: Text("等伺服器派身分。"))
                   : LayoutBuilder(
                       builder: (context, constraints) {
-                        final bustH = (constraints.maxHeight * 0.78).clamp(140.0, 360.0);
-                        final bustW = bustH * 84 / 108;
+                        var bustH = constraints.maxHeight.isFinite ? constraints.maxHeight * 0.9 : 180.0;
+                        var bustW = bustH * 84 / 108;
+                        if (constraints.maxWidth.isFinite && bustW > constraints.maxWidth) {
+                          bustW = constraints.maxWidth;
+                          bustH = bustW * 108 / 84;
+                        }
+                        bustH = math.max(0, bustH);
+                        bustW = math.max(0, bustW);
                         return Center(
                           child: RolePortrait(
                             role: role,
@@ -226,19 +248,28 @@ class _TablePageState extends State<TablePage> {
                       },
                     ),
             ),
-            const SizedBox(width: 24),
+            const SizedBox(width: 16),
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(public.banner),
+                    Text(public.banner, softWrap: true),
+                    const SizedBox(height: 6),
+                    Text(
+                      "公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}",
+                      softWrap: true,
+                    ),
                     const SizedBox(height: 8),
-                    Text("公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}"),
-                    const SizedBox(height: 12),
-                    if (role != null) _roleCopy(mine),
-                    const SizedBox(height: 16),
-                    _actions(public, mine),
+                    if (role != null) _roleCopy(mine, titleSize: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 10),
+                    Theme(
+                      data: Theme.of(context).copyWith(
+                        visualDensity: VisualDensity.compact,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      child: _actions(public, mine),
+                    ),
                   ],
                 ),
               ),
@@ -263,7 +294,7 @@ class _TablePageState extends State<TablePage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              RolePortrait(role: role, seatId: mine.seatId, width: 64, height: 82),
+              RolePortrait(role: role, seatId: mine.seatId, width: 52, height: 66),
               const SizedBox(width: 8),
               Expanded(child: _roleCopy(mine, titleSize: Theme.of(context).textTheme.titleMedium)),
             ],
@@ -281,7 +312,7 @@ class _TablePageState extends State<TablePage> {
         Text("你嘅身分", style: Theme.of(context).textTheme.labelLarge),
         Text("${role.name} · ${role.factionLabel}", style: titleSize ?? Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 4),
-        Text(role.skill),
+        Text(role.skill, softWrap: true),
         if (mine.teammates.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 6),
@@ -296,14 +327,18 @@ class _TablePageState extends State<TablePage> {
     );
   }
 
-  List<Widget> _statusBlock(PublicView public, PrivateView mine) {
+  List<Widget> _statusBlock(PublicView public, PrivateView mine, {bool compact = false}) {
+    final gap = compact ? 4.0 : 8.0;
     return [
       ..._tips(mine),
-      Text(public.banner),
-      const SizedBox(height: 8),
-      Text("第 ${public.round} 輪 · 第 ${public.night} 夜 · 失聯 ${public.disconnects}／${public.disconnectsToWin}"),
-      const SizedBox(height: 4),
-      Text("公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}"),
+      Text(public.banner, softWrap: true),
+      SizedBox(height: gap),
+      Text("第 ${public.round} 輪 · 第 ${public.night} 夜 · 失聯 ${public.disconnects}／${public.disconnectsToWin}", softWrap: true),
+      SizedBox(height: compact ? 2 : 4),
+      Text(
+        "公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}",
+        softWrap: true,
+      ),
       Align(
         alignment: Alignment.centerLeft,
         child: TextButton(
@@ -312,7 +347,7 @@ class _TablePageState extends State<TablePage> {
           child: const Text("角色圖鑑"),
         ),
       ),
-      const SizedBox(height: 12),
+      SizedBox(height: compact ? 4 : 12),
       if (public.winner != null) _WinnerCard(winner: public.winner!, reveal: public.reveal),
       if (mine.remnants.isNotEmpty) ...[
         const SizedBox(height: 8),
@@ -348,9 +383,9 @@ class _TablePageState extends State<TablePage> {
     ];
   }
 
-  List<Widget> _channelBlock(PublicView public, PrivateView mine) {
+  List<Widget> _channelBlock(PublicView public, PrivateView mine, {bool compact = false}) {
     return [
-      const SizedBox(height: 16),
+      SizedBox(height: compact ? 8 : 16),
       Text("公開頻道", style: Theme.of(context).textTheme.titleSmall),
       const SizedBox(height: 6),
       for (final line in public.log)
@@ -518,7 +553,27 @@ class _TablePageState extends State<TablePage> {
     ];
   }
 
-  Widget _actions(PublicView public, PrivateView mine) {
+  Widget _actionPair({required bool sideBySide, required Widget first, required Widget second}) {
+    if (!sideBySide) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          first,
+          const SizedBox(height: 8),
+          second,
+        ],
+      );
+    }
+    return Row(
+      children: [
+        Expanded(child: first),
+        const SizedBox(width: 8),
+        Expanded(child: second),
+      ],
+    );
+  }
+
+  Widget _actions(PublicView public, PrivateView mine, {bool sideBySide = false}) {
     if (!mine.alive) return const Text("你已離場，可以繼續睇公開頻道。");
     if (public.winner != null || public.phase == "ended") {
       return const Text("勝負已定。可以離開再開一房。");
@@ -541,7 +596,10 @@ class _TablePageState extends State<TablePage> {
     }
     switch (public.phase) {
       case "boot":
-        return FilledButton(onPressed: widget.controller.ready, child: const Text("我睇完身分"));
+        return FilledButton(
+          onPressed: widget.controller.ready,
+          child: const Text("我睇完身分", textAlign: TextAlign.center),
+        );
       case "day_talk":
         if (!mine.canSpeak) {
           return Column(
@@ -569,17 +627,19 @@ class _TablePageState extends State<TablePage> {
             ),
             const SizedBox(height: 8),
             ..._skillControls(public, mine),
-            FilledButton(
-              onPressed: () {
-                final text = _text.text.trim();
-                if (text.isEmpty) return;
-                widget.controller.chat(text);
-                _text.clear();
-              },
-              child: const Text("送出"),
+            _actionPair(
+              sideBySide: sideBySide,
+              first: FilledButton(
+                onPressed: () {
+                  final text = _text.text.trim();
+                  if (text.isEmpty) return;
+                  widget.controller.chat(text);
+                  _text.clear();
+                },
+                child: const Text("送出", textAlign: TextAlign.center),
+              ),
+              second: OutlinedButton(onPressed: widget.controller.ready, child: const Text("準備好", textAlign: TextAlign.center)),
             ),
-            const SizedBox(height: 8),
-            OutlinedButton(onPressed: widget.controller.ready, child: const Text("準備好")),
           ],
         );
       case "draft":
@@ -599,7 +659,7 @@ class _TablePageState extends State<TablePage> {
                 widget.controller.draft(_text.text);
                 widget.controller.ready();
               },
-              child: const Text("交草稿並準備"),
+              child: const Text("交草稿並準備", textAlign: TextAlign.center),
             ),
           ],
         );
@@ -632,7 +692,7 @@ class _TablePageState extends State<TablePage> {
             const SizedBox(height: 8),
             FilledButton(
               onPressed: _target == null ? null : () => widget.controller.vote(_target, anonymous: _anonymous),
-              child: const Text("確認投票"),
+              child: const Text("確認投票", textAlign: TextAlign.center),
             ),
             TextButton(
               onPressed: () => widget.controller.vote(null, anonymous: _anonymous),
@@ -651,7 +711,7 @@ class _TablePageState extends State<TablePage> {
               ..._skillControls(public, mine),
               Text(mine.skillActions.isEmpty ? "你今夜沒有主動技能。" : "可以改標記，或者放假訊。"),
               const SizedBox(height: 8),
-              FilledButton(onPressed: widget.controller.ready, child: const Text("跳過並準備")),
+              FilledButton(onPressed: widget.controller.ready, child: const Text("跳過並準備", textAlign: TextAlign.center)),
             ],
           );
         }
@@ -689,15 +749,18 @@ class _TablePageState extends State<TablePage> {
               ),
             ],
             const SizedBox(height: 8),
-            FilledButton(
-              onPressed: choice.needsTarget && _target == null
-                  ? null
-                  : () => widget.controller.night(choice.action, targetSeatId: choice.needsTarget ? _target : null),
-              child: const Text("提交行動"),
-            ),
-            const SizedBox(height: 8),
             const Text("未提交就準備，會當跳過。"),
-            OutlinedButton(onPressed: widget.controller.ready, child: const Text("準備好")),
+            const SizedBox(height: 8),
+            _actionPair(
+              sideBySide: sideBySide,
+              first: FilledButton(
+                onPressed: choice.needsTarget && _target == null
+                    ? null
+                    : () => widget.controller.night(choice.action, targetSeatId: choice.needsTarget ? _target : null),
+                child: const Text("提交行動", textAlign: TextAlign.center),
+              ),
+              second: OutlinedButton(onPressed: widget.controller.ready, child: const Text("準備好", textAlign: TextAlign.center)),
+            ),
           ],
         );
       default:
@@ -765,7 +828,7 @@ class _RoleCard extends StatelessWidget {
                   Text("你嘅身分", style: Theme.of(context).textTheme.labelLarge),
                   Text("${role.name} · ${role.factionLabel}", style: Theme.of(context).textTheme.titleLarge),
                   const SizedBox(height: 4),
-                  Text(role.skill),
+                  Text(role.skill, softWrap: true),
                   if (mine.teammates.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
@@ -903,6 +966,7 @@ class _WideTable extends StatelessWidget {
 
   Widget _line(List<PublicSeat> row) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final seat in row)
           Expanded(
@@ -935,30 +999,34 @@ class _RingSeat extends StatelessWidget {
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: mine ? const Color(0xFFE7C27A) : const Color(0x443A4A5C)),
         ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _SeatFace(seatId: seat.id, asset: asset, width: 36, height: 46),
-              const SizedBox(height: 2),
-              Text(
-                "${seat.id} ${seat.nickname}",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final height = constraints.maxHeight.isFinite ? constraints.maxHeight : 120.0;
+            final face = height >= 96 ? 34.0 : (height >= 74 ? 24.0 : 0.0);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (face > 0) ...[
+                    _SeatFace(seatId: seat.id, asset: asset, width: face, height: face * 1.2),
+                    const SizedBox(height: 2),
+                  ],
+                  Text(
+                    "${seat.id} ${seat.nickname}",
+                    textAlign: TextAlign.center,
+                    softWrap: true,
+                    style: const TextStyle(fontSize: 11, height: 1.1),
+                  ),
+                  if (!seat.alive)
+                    const Text("離場", textAlign: TextAlign.center, style: TextStyle(fontSize: 10, height: 1.1)),
+                  if (seat.sealed)
+                    const Text("封口", textAlign: TextAlign.center, style: TextStyle(fontSize: 10, height: 1.1)),
+                  if (seat.isAi) const Padding(padding: EdgeInsets.only(top: 2), child: AiBadge()),
+                ],
               ),
-              if (!seat.alive || seat.sealed)
-                Text(
-                  "${seat.alive ? "" : "離場"}${seat.sealed ? " 封口" : ""}",
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10),
-                ),
-              if (seat.isAi) const Padding(padding: EdgeInsets.only(top: 2), child: AiBadge()),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
