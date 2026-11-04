@@ -1,10 +1,12 @@
 # @quiet-zone/server
 
-TypeScript 權威後端骨架。**已鎖定：Node.js + Express**（非 Bun／Fastify）。
+標準 Mode 權威後端。Node.js + Express + WebSocket。勝負同技能只喺 `src/domain/engine.ts` 結算。
 
 ```bash
 npm install
-npm run dev
+npm test
+npm run demo    # 一局 GM 腳本
+npm run dev     # http://127.0.0.1:8787/health  同  ws://127.0.0.1:8787/ws
 ```
 
-`GET /health` → JSON ok。WebSocket 只留 stub 註解，未接房間／狀態機。
+`QZ_FAST=1` 縮短階段計時。鎖定規則喺 `src/config/rules.ts`。

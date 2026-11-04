@@ -1,38 +1,24 @@
-import express from "express";
+import { RULES } from "./config/rules.js";
+import type { Phase } from "./domain/types.js";
+import { createGameServer } from "./server.js";
 
 /**
- * Quiet Zone — authoritative server skeleton.
- * Locked stack: TypeScript on Node.js + Express (Martin 2026-11-04).
- *
- * TODO (not in this stub):
- * - Room / matchmaking
- * - Game state machine (day / draft / vote / night)
- * - Auth + private role assignment
- *
- * WebSocket stub (comment only — do not install ws yet unless needed):
- *   // import { WebSocketServer } from "ws";
- *   // const wss = new WebSocketServer({ server: httpServer });
- *   // wss.on("connection", (socket) => { ... room join / leave ... });
- * Prefer attaching WS to the same HTTP server after `app.listen`.
+ * Quiet Zone authoritative server.
+ * Standard Mode only. Roles, votes, and win checks stay in GameEngine.
  */
-
 const PORT = Number(process.env.PORT ?? 8787);
-const app = express();
+const FAST = process.env.QZ_FAST === "1";
 
-app.use(express.json());
+function phaseMs(phase: Phase): number | null {
+  if (!(phase in RULES.phaseMs)) return null;
+  const base = RULES.phaseMs[phase as keyof typeof RULES.phaseMs];
+  return FAST ? Math.min(base, 1200) : base;
+}
 
-app.get("/health", (_req, res) => {
-  res.json({
-    ok: true,
-    service: "quiet-zone-server",
-    stack: "node+express+typescript",
-  });
-});
+const { http } = createGameServer({ timers: true, autoAi: true, phaseMs });
 
-app.get("/", (_req, res) => {
-  res.type("text").send("quiet-zone server — hello (authoritative stub)");
-});
-
-app.listen(PORT, () => {
+http.listen(PORT, () => {
   console.log(`[quiet-zone] listening on http://127.0.0.1:${PORT}`);
+  console.log(`[quiet-zone] websocket ws://127.0.0.1:${PORT}/ws`);
+  if (FAST) console.log("[quiet-zone] QZ_FAST=1 short phase timers");
 });
