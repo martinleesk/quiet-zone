@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 
 import "ai_badge.dart";
+import "codex_page.dart";
 import "game_controller.dart";
 import "protocol.dart";
 
@@ -57,6 +58,11 @@ class _TablePageState extends State<TablePage> {
                 child: Text("剩餘 ${widget.controller.secondsLeft ?? public.secondsLeft} 秒"),
               ),
             ),
+          IconButton(
+            tooltip: "角色圖鑑",
+            onPressed: () => openRoleCodex(context),
+            icon: const Icon(Icons.menu_book_outlined),
+          ),
           TextButton(onPressed: widget.controller.leave, child: const Text("離開")),
         ],
       ),
@@ -75,6 +81,14 @@ class _TablePageState extends State<TablePage> {
                 const SizedBox(height: 4),
                 Text(
                   "公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}",
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton(
+                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 0), visualDensity: VisualDensity.compact),
+                    onPressed: () => openRoleCodex(context),
+                    child: const Text("角色圖鑑"),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 if (public.winner != null) _WinnerCard(winner: public.winner!, reveal: public.reveal),

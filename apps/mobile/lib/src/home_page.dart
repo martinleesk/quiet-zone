@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 
+import "codex_page.dart";
 import "game_controller.dart";
 
 class HomePage extends StatefulWidget {
@@ -37,6 +38,11 @@ class _HomePageState extends State<HomePage> {
             Text("封鎖夜 · 標準 Mode", style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             const Text("私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"),
+            const SizedBox(height: 16),
+            OutlinedButton(
+              onPressed: () => openRoleCodex(context),
+              child: const Text("角色圖鑑"),
+            ),
             const SizedBox(height: 24),
             TextField(
               controller: _url,
