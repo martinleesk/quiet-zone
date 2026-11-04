@@ -175,21 +175,3 @@ const List<CodexFactionGroup> kCodexFactions = [
 List<CodexRole> get kStandardRoles => [
       for (final group in kCodexFactions) ...group.roles,
     ];
-
-/// Three arrows on the role card. Same text as ROLE_ACTS in roles.ts.
-const Map<String, List<String>> kRoleActs = {
-  "tip": ["燈亮撳釘一句", "寫低你見到嘅", "唔佔發言"],
-  "sweep": ["熄燈先用", "揀一個人", "知道消音定乾淨"],
-  "cover": ["熄燈先用", "揀一個要保嘅人", "成功後下一夜唔用"],
-  "echo": ["唔使撳掣", "有人被票走", "你私下收到陣營"],
-  "link": ["燈亮先用", "揀一個人", "知道上輪用過未"],
-  "civilian": ["講一句", "寫草稿", "投票"],
-  "silencer": ["熄燈先用", "揀冇掩護嘅人", "令佢離場"],
-  "decoy": ["每局兩次", "放一句假料", "或標線報未核實"],
-  "plant": ["第一次被查裝乾淨", "投票可匿名一次", "唔使每輪撳"],
-  "warrant": ["暗標消音", "標中兩個就獨贏", "熄燈可以封口"],
-};
-
-List<String> roleActs(String roleId) => kRoleActs[roleId] ?? const [];
-
-const cardFooter = "平票就冇人走 · 隔離唔講陣營";

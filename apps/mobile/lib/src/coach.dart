@@ -1,11 +1,10 @@
 import "package:flutter/material.dart";
 
 import "protocol.dart";
-import "role_catalog.dart";
 
 /// Plain “what do I do now” lines. Mirror of PHASE_COACH in roles.ts.
 const phaseCoach = <String, String>{
-  "home": "10 個角色，先識人再入座",
+  "home": "11 人隱藏身份。你要估邊三個係消音組。",
   "lobby": "記住你係邊個，再開始燈亮",
   "boot": "記住身份，再去燈亮",
   "day_talk": "講一句你懷疑邊個",
@@ -121,43 +120,6 @@ class SkillCue extends StatelessWidget {
   }
 }
 
-String _indexOf(String roleId) {
-  final index = kStandardRoles.indexWhere((role) => role.id == roleId);
-  final number = index < 0 ? 1 : index + 1;
-  return number.toString().padLeft(2, "0");
-}
-
-Color factionAccentOf(String faction) {
-  switch (faction) {
-    case "silence":
-      return const Color(0xFFE07A7A);
-    case "grey":
-      return const Color(0xFFC9D2DC);
-    default:
-      return const Color(0xFFE7C27A);
-  }
-}
-
-class _Verb extends StatelessWidget {
-  const _Verb({required this.label, this.ghost = false});
-
-  final String label;
-  final bool ghost;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: ghost ? Colors.transparent : const Color(0xFFE7C27A),
-        borderRadius: BorderRadius.circular(99),
-        border: Border.all(color: const Color(0xFFE7C27A)),
-      ),
-      child: Text(label, style: TextStyle(color: ghost ? const Color(0xFFE7C27A) : const Color(0xFF0E141B), fontWeight: FontWeight.w800)),
-    );
-  }
-}
-
 class RoleRevealCard extends StatelessWidget {
   const RoleRevealCard({super.key, required this.mine, required this.onStart, required this.onLater});
 
@@ -179,32 +141,11 @@ class RoleRevealCard extends StatelessWidget {
               shrinkWrap: true,
               padding: const EdgeInsets.all(16),
               children: [
-                Text(_indexOf(role.id), style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: Color(0xFFF0A05A), height: 1)),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    color: factionAccentOf(role.faction),
-                    child: Text(role.name, style: const TextStyle(color: Color(0xFF0E141B), fontWeight: FontWeight.w800, fontSize: 22)),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text("${role.factionLabel} · 記法 ${role.mnemonic}"),
+                Text("你係", style: Theme.of(context).textTheme.labelLarge),
+                Text(role.name, style: Theme.of(context).textTheme.headlineMedium?.copyWith(color: const Color(0xFFE7C27A))),
+                Text("${role.factionLabel}${role.mnemonic.isEmpty ? "" : " · 記法 ${role.mnemonic}"}"),
                 const SizedBox(height: 8),
-                for (final act in roleActs(role.id))
-                  Text("→ $act", style: const TextStyle(color: Color(0xFFF0A05A), fontWeight: FontWeight.w700)),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  children: const [
-                    _Verb(label: "發動"),
-                    _Verb(label: "揀目標"),
-                    _Verb(label: "跳過", ghost: true),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(cardFooter, style: TextStyle(color: Color(0xFFE7C27A), fontSize: 12)),
+                Text(role.skill),
                 const SizedBox(height: 12),
                 FilledButton(onPressed: onStart, child: const Text("開始燈亮")),
                 TextButton(onPressed: onLater, child: const Text("先睇下席")),

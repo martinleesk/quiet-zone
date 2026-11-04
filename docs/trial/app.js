@@ -13,23 +13,10 @@ const ROLES = [
   { id: "warrant", name: "孤證", faction: "grey", label: "灰頻", color: "#9AA7B5", win: "孤證仍然在場，暗標中兩個消音就獨贏。", mnemonic: "暗標兩個就贏", when: "隨時標，熄燈封口", skill: "暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。", busts: ["roles/warrant.jpg"] },
 ];
 
-const ACTS = {
-  tip: ["燈亮撳釘一句", "寫低你見到嘅", "唔佔發言"],
-  sweep: ["熄燈先用", "揀一個人", "知道消音定乾淨"],
-  cover: ["熄燈先用", "揀一個要保嘅人", "成功後下一夜唔用"],
-  echo: ["唔使撳掣", "有人被票走", "你私下收到陣營"],
-  link: ["燈亮先用", "揀一個人", "知道上輪用過未"],
-  civilian: ["講一句", "寫草稿", "投票"],
-  silencer: ["熄燈先用", "揀冇掩護嘅人", "令佢離場"],
-  decoy: ["每局兩次", "放一句假料", "或標線報未核實"],
-  plant: ["第一次被查裝乾淨", "投票可匿名一次", "唔使每輪撳"],
-  warrant: ["暗標消音", "標中兩個就獨贏", "熄燈可以封口"],
-};
-const FOOTER = "平票就冇人走 · 隔離唔講陣營";
 const COACH = {
-  home: { line: "10 個角色，先識人再入座", bullets: ["燈亮講一句", "投票隔離", "熄燈先用技能"] },
+  home: { line: "11 人隱藏身份。你要估邊三個係消音組。", bullets: ["燈亮講一句", "投票隔離", "熄燈先用技能"] },
   lobby: { line: "記住你係邊個，再開始燈亮", bullets: ["你坐一席", "其餘係 AI", "徽章會一直在"] },
-  boot: { line: "記住身份，再去燈亮", bullets: ["睇名牌", "睇三個箭嘴", "撳開始"] },
+  boot: { line: "記住身份，再去燈亮", bullets: ["睇你嘅名", "睇技能一句", "撳開始"] },
   day_talk: { line: "講一句你懷疑邊個", bullets: ["有技能先撳發動", "講完撳準備好", "倒數見大數字"] },
   draft: { line: "寫低你想點投票", bullets: ["可以留空", "然後準備", "平票就冇人走"] },
   vote: { line: "揀一個人票走", bullets: ["平票就冇人走", "可以棄權", "撳準備先結算"] },
@@ -290,34 +277,13 @@ function skillCard(pub, priv) {
   }
   const explain = role ? `${esc(role.name)} · ${esc(role.skill)}` : "";
   const when = role && role.when ? `<p class="small">幾時用：${esc(role.when)}</p>` : "";
-  return `<section class="skill-card" id="skill-card"><strong>發動</strong><p>${explain}</p>${when}${blocks.join("")}<p class="footer-rule">${FOOTER}</p></section>`;
+  return `<section class="skill-card" id="skill-card"><strong>發動技能</strong><p>${explain}</p>${when}${blocks.join("")}</section>`;
 }
 
 function setCoach(id) {
   const coach = COACH[id] || { line: "跟住下面嘅掣", bullets: [] };
-  coachEl.textContent = coach.line;
-  coachArrows.innerHTML = (coach.bullets || []).slice(0, 3).map((item) => `<span>→ ${esc(item)}</span>`).join("");
-}
-
-function roleIndex(id) {
-  const index = ROLES.findIndex((role) => role.id === id);
-  return String(index < 0 ? 1 : index + 1).padStart(2, "0");
-}
-
-function roleCardHtml(role, seatId, buttons) {
-  const acts = (role.acts || ACTS[role.id] || []).slice(0, 3);
-  return `<article class="role-card" style="--faction:${role.color || "#E7C27A"}">
-    <img class="${bustClass(role.id, seatId)}" src="${esc(bustSrc(role.id, seatId))}" alt="">
-    <div>
-      <div class="index-no">${roleIndex(role.id)}</div>
-      <div class="nameplate" style="background:${role.color || "#E7C27A"}">${esc(role.name)}</div>
-      <p class="small" style="margin-top:4px">${esc(role.label || role.factionLabel || "")} · 記法 ${esc(role.mnemonic || "")}</p>
-      <div class="arrows">${acts.map((item) => `<span>→ ${esc(item)}</span>`).join("")}</div>
-      <div class="row-btns" style="margin-top:8px"><span class="verb">發動</span><span class="verb">揀目標</span><span class="verb ghost">跳過</span></div>
-      <div class="row-btns">${buttons}</div>
-      <p class="footer-rule">${FOOTER}</p>
-    </div>
-  </article>`;
+  coachEl.textContent = `而家做咩：${coach.line}`;
+  coachArrows.innerHTML = (coach.bullets || []).slice(0, 3).map((item) => `<span>${esc(item)}</span>`).join("");
 }
 
 function syncBarHeight() {
@@ -334,15 +300,13 @@ function paintHome() {
   document.body.dataset.phase = "home";
   overlay.hidden = true;
   syncClock(null);
-  const map = ROLES.map((role) => `<button type="button" class="tile${role.id === "civilian" ? " wide" : ""}" data-act="map-role" data-id="${role.id}"><span class="pair">${busts(role)}</span><span>${role.name}</span><span class="memo">${role.mnemonic}</span></button>`).join("");
   app.innerHTML = `<div class="home">
     <div class="scene day"><div class="copy">
-      <div class="index-no">10</div>
       <h1>消音區</h1>
       <div class="sub">封鎖夜 · 標準 Mode 試玩</div>
-      <p>10 個角色。滑動查看，撳一張先睇點行動。</p>
-      <div class="map-row">${map}</div>
-      <p class="footer-rule">${FOOTER}</p>
+      <p>11 人隱藏身份。你要估邊三個係消音組。</p>
+      <p>燈亮講一句，然後投票。熄燈先用技能。上面會寫而家做咩。</p>
+      <p class="small">請轉橫向。倒數係上面個大數字。</p>
     </div></div>
     <form class="pane" id="home-form">
       <div class="dock" style="border-top:0;max-height:none">
@@ -421,30 +385,35 @@ function paint() {
   }
 }
 
-function catalogRole(role) {
-  return ROLES.find((item) => item.id === role.id) || role;
-}
-
-function showRoleCard(role, seatId, buttons) {
-  const card = catalogRole(role);
-  sheet.innerHTML = roleCardHtml({ ...card, ...role, color: card.color, label: card.label || role.factionLabel }, seatId, buttons);
-  overlay.hidden = false;
-}
-
 function showOverlay(pub, priv) {
   const role = priv.role;
   if (pub.phase === "lobby" && role && !seenTips.has("role")) {
-    showRoleCard(
-      role,
-      priv.seatId,
-      `<button class="verb" type="button" data-act="begin">開始燈亮</button><button class="verb ghost" type="button" data-act="later">先睇下席</button>`,
-    );
+    const catalog = ROLES.find((item) => item.id === role.id);
+    sheet.innerHTML = `<div class="sheet-card">
+      <img class="${bustClass(role.id, priv.seatId)}" src="${esc(bustSrc(role.id, priv.seatId))}" alt="">
+      <div>
+        <div class="kicker">你係</div>
+        <h2 style="margin:0;color:var(--gold)">${esc(role.name)}</h2>
+        <p>${esc(role.factionLabel || "")} · 記法 ${esc(role.mnemonic || catalog?.mnemonic || "")}</p>
+        <p>${esc(role.skill)}</p>
+        <div class="row-btns">
+          <button class="btn fill" type="button" data-act="begin">開始燈亮</button>
+          <button class="btn" type="button" data-act="later">先睇下席</button>
+        </div>
+      </div>
+    </div>`;
+    overlay.hidden = false;
     return;
   }
   const tipId = pub.phase === "day_talk" && pub.round === 1 ? "day" : pub.phase === "night" && pub.night === 1 ? "night" : "";
   if (tipId && !seenTips.has(tipId)) {
     const coach = COACH[pub.phase];
-    sheet.innerHTML = `<div class="role-card"><div><div class="index-no">${tipId === "night" ? "夜" : "日"}</div><p class="coach">${esc(coach.line)}</p><div class="arrows">${(coach.bullets || []).slice(0, 3).map((item) => `<span>→ ${esc(item)}</span>`).join("")}</div><p class="footer-rule">${FOOTER}</p><button class="verb" type="button" data-act="dismiss-tip" data-id="${tipId}">知道了</button></div></div>`;
+    const tips = (coach.bullets || []).slice(0, 3).map((item) => `<p>${esc(item)}</p>`).join("");
+    sheet.innerHTML = `<div class="sheet-card"><div>
+      <p class="coach">而家做咩：${esc(coach.line)}</p>
+      ${tips}
+      <button class="btn fill" type="button" data-act="dismiss-tip" data-id="${tipId}">知道了</button>
+    </div></div>`;
     overlay.hidden = false;
     return;
   }
@@ -504,16 +473,6 @@ app.addEventListener("click", (event) => {
   const id = node.dataset.id || "";
   if (act === "codex") {
     document.getElementById("codex").hidden = false;
-    return;
-  }
-  if (act === "map-role") {
-    const role = ROLES.find((item) => item.id === id);
-    if (!role) return;
-    showRoleCard(
-      role,
-      "",
-      `<button class="verb" type="button" data-act="close-map">返回地圖</button>`,
-    );
     return;
   }
   if (act === "create") {
@@ -606,8 +565,8 @@ overlay.addEventListener("click", (event) => {
     send({ type: "start_game" });
     return;
   }
-  if (act === "later" || act === "close-map") {
-    if (act === "later") seenTips.add("role");
+  if (act === "later") {
+    seenTips.add("role");
     overlay.hidden = true;
     return;
   }
@@ -665,7 +624,7 @@ function openRole(id) {
   const faction = document.getElementById("detail-faction");
   faction.textContent = role.label;
   faction.style.color = role.color;
-  document.getElementById("detail-skill").textContent = (ACTS[role.id] || []).map((item) => `→ ${item}`).join("\n") + `\n${role.skill}`;
+  document.getElementById("detail-skill").textContent = role.skill;
   document.getElementById("detail-win").textContent = role.win;
   let memo = document.getElementById("detail-memo");
   if (!memo) {

@@ -449,8 +449,6 @@ class _RoleCodexDetail extends StatelessWidget {
                   ),
                   Text(factionLabelOf(role.faction), style: TextStyle(color: accent)),
                   Text("記法：${role.mnemonic}", style: const TextStyle(color: Color(0xFF9AA7B5))),
-                  for (final act in roleActs(role.id))
-                    Text("→ $act", style: const TextStyle(color: Color(0xFFF0A05A), fontSize: 12, height: 1.15, fontWeight: FontWeight.w700)),
                 ],
               ),
             ),

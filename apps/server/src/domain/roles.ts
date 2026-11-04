@@ -14,9 +14,9 @@ export interface RoleDef {
 
 /** Gold action line plus at most three arrows. Clients mirror these lines. */
 export const PHASE_COACH: Record<string, { line: string; cta: string; bullets: readonly string[] }> = {
-  home: { line: "10 個角色，先識人再入座", cta: "開試玩房", bullets: ["燈亮講一句", "投票隔離", "熄燈先用技能"] },
+  home: { line: "11 人隱藏身份。你要估邊三個係消音組。", cta: "開試玩房", bullets: ["燈亮講一句", "投票隔離", "熄燈先用技能"] },
   lobby: { line: "記住你係邊個，再開始燈亮", cta: "開始燈亮", bullets: ["你坐一席", "其餘係 AI", "徽章會一直在"] },
-  boot: { line: "記住身份，再去燈亮", cta: "去燈亮", bullets: ["睇名牌", "睇三個箭嘴", "撳開始"] },
+  boot: { line: "記住身份，再去燈亮", cta: "去燈亮", bullets: ["睇你嘅名", "睇技能一句", "撳開始"] },
   day_talk: { line: "講一句你懷疑邊個", cta: "寫一句", bullets: ["有技能先撳發動", "講完撳準備好", "倒數見大數字"] },
   draft: { line: "寫低你想點投票", cta: "交草稿", bullets: ["可以留空", "然後準備", "平票就冇人走"] },
   vote: { line: "揀一個人票走", cta: "確認投票", bullets: ["平票就冇人走", "可以棄權", "撳準備先結算"] },
@@ -25,22 +25,6 @@ export const PHASE_COACH: Record<string, { line: string; cta: string; bullets: r
   check: { line: "睇下有冇人贏", cta: "等下一輪", bullets: [] },
   ended: { line: "局完，身份公開", cta: "離開", bullets: [] },
 };
-
-/** Exactly three plain actions per role. Shown as arrows on the role card. */
-export const ROLE_ACTS: Record<RoleId, readonly [string, string, string]> = {
-  tip: ["燈亮撳釘一句", "寫低你見到嘅", "唔佔發言"],
-  sweep: ["熄燈先用", "揀一個人", "知道消音定乾淨"],
-  cover: ["熄燈先用", "揀一個要保嘅人", "成功後下一夜唔用"],
-  echo: ["唔使撳掣", "有人被票走", "你私下收到陣營"],
-  link: ["燈亮先用", "揀一個人", "知道上輪用過未"],
-  civilian: ["講一句", "寫草稿", "投票"],
-  silencer: ["熄燈先用", "揀冇掩護嘅人", "令佢離場"],
-  decoy: ["每局兩次", "放一句假料", "或標線報未核實"],
-  plant: ["第一次被查裝乾淨", "投票可匿名一次", "唔使每輪撳"],
-  warrant: ["暗標消音", "標中兩個就獨贏", "熄燈可以封口"],
-};
-
-export const CARD_FOOTER = "平票就冇人走 · 隔離唔講陣營";
 
 export const FACTION_LABEL: Record<Faction, string> = {
   lighthouse: "燈塔網",

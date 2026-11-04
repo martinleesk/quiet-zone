@@ -254,12 +254,12 @@
       padding: 12px;
     }
     .overlay[hidden] { display: none; }
-    .sheet {
-      width: min(680px, 100%);
-      background: transparent;
-      border: 0;
-      padding: 0;
+    .sheet { width: min(560px, 100%); background: transparent; border: 0; padding: 0; }
+    .sheet-card {
+      display: flex; gap: 12px; width: 100%;
+      background: #17202a; border: 1px solid var(--gold); border-radius: 16px; padding: 12px;
     }
+    .sheet-card img { width: 96px; height: 124px; object-fit: cover; object-position: center 12%; border-radius: 12px; }
     .sheet img { width: 96px; height: 124px; object-fit: cover; object-position: center 12%; border-radius: 12px; }
     .tip-card { background: #243044; border-radius: 10px; padding: 8px; margin-bottom: 8px; }
     .detail {
@@ -303,7 +303,7 @@
       <button type="button" id="open-codex">角色圖鑑</button>
       <button type="button" id="leave" hidden>離開</button>
     </div>
-    <div class="coach" id="coach">10 個角色，先識人再入座</div>
+    <div class="coach" id="coach">而家做咩：11 人隱藏身份。你要估邊三個係消音組。</div>
     <div class="arrows" id="coach-arrows"></div>
     <div class="meter" id="meter"><div id="meter-fill"></div></div>
   </header>
