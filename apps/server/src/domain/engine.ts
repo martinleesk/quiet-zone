@@ -31,6 +31,7 @@ interface SeatState {
   /** Night index on which cover may succeed again. Success on N sets this to N+2. */
   coverReadyNight: number;
   inbox: string[];
+  remnants: Array<{ nickname: string; factionLabel: string; text: string }>;
   usedSkillThisRound: boolean;
   usedSkillLastRound: boolean;
   pinnedThisRound: boolean;
@@ -104,6 +105,7 @@ export class GameEngine {
   private tokenSeq = 0;
   private silenceNotes: Array<{ seatId: string; nickname: string; text: string }> = [];
   private silenceSent = new Map<string, number>();
+  private deadlineAt: number | null = null;
 
   constructor(opts: EngineOptions = {}) {
     this.rng = opts.rng ?? Math.random;
@@ -124,6 +126,11 @@ export class GameEngine {
 
   getDisconnects(): number {
     return this.successfulDisconnects;
+  }
+
+  /** Absolute time in ms when the current phase should advance. Null clears it. */
+  setPhaseDeadline(at: number | null): void {
+    this.deadlineAt = at;
   }
 
   addPlayer(playerId: string, nickname: string): Step & { seatId?: string } {
@@ -506,6 +513,8 @@ export class GameEngine {
       winner: this.winner ? { ...this.winner } : null,
       hostSeatId: this.seats[0]?.id ?? null,
       locked: this.phase !== "lobby",
+      secondsLeft: this.secondsLeft(),
+      reveal: this.phase === "ended" ? this.revealSeats() : null,
     };
   }
 
@@ -546,6 +555,8 @@ export class GameEngine {
       marks: seat ? [...seat.silenceMarks] : [],
       silenceChannel: seat && this.factionOf(seat) === "silence" ? this.silenceNotes.map((note) => ({ ...note })) : [],
       tips: seat ? this.tipsFor(seat) : [],
+      secondsLeft: this.secondsLeft(),
+      remnants: seat?.roleId === "echo" ? seat.remnants.map((item) => ({ ...item })) : [],
     };
   }
 
@@ -564,6 +575,7 @@ export class GameEngine {
       sweepFog: 0,
       coverReadyNight: 1,
       inbox: [],
+      remnants: [],
       usedSkillThisRound: false,
       usedSkillLastRound: false,
       pinnedThisRound: false,
@@ -832,7 +844,9 @@ export class GameEngine {
     const echo = this.seats.find((seat) => seat.alive && seat.roleId === "echo");
     if (!echo || !isolated.roleId) return;
     const faction = ROLES[isolated.roleId].faction;
-    echo.inbox.push(`回波殘片：${isolated.nickname} 屬於${FACTION_LABEL[faction]}。公開頻道唔會披露陣營。`);
+    const text = `回波殘片：${isolated.nickname} 屬於${FACTION_LABEL[faction]}。公開頻道唔會披露陣營。`;
+    echo.inbox.push(text);
+    echo.remnants.push({ nickname: isolated.nickname, factionLabel: FACTION_LABEL[faction], text });
   }
 
   private fillMissingNights(): void {
@@ -935,6 +949,7 @@ export class GameEngine {
         faction: "grey",
         factionLabel: FACTION_LABEL.grey,
         reason: "灰頻獨贏：孤證客仍在場，正確消音標記達 2。",
+        kind: "grey_marks",
       };
       this.banner = this.winner.reason;
       this.pushLog(this.winner.reason);
@@ -949,6 +964,7 @@ export class GameEngine {
         reason: this.successfulDisconnects >= RULES.silenceWin.successfulDisconnects
           ? "消音組達標：成功失聯 3 次。"
           : "消音組勝：燈塔網已無法投票。",
+        kind: "silence_disconnects",
       };
       this.banner = this.winner.reason;
       this.pushLog(this.winner.reason);
@@ -959,6 +975,7 @@ export class GameEngine {
         faction: "lighthouse",
         factionLabel: FACTION_LABEL.lighthouse,
         reason: "燈塔網解封：消音組已全部離場。",
+        kind: "lighthouse_clear",
       };
       this.banner = this.winner.reason;
       this.pushLog(this.winner.reason);
@@ -975,6 +992,26 @@ export class GameEngine {
       if (target && this.factionOf(target) === "silence") count += 1;
     }
     return count;
+  }
+
+  private secondsLeft(): number | null {
+    if (this.deadlineAt == null) return null;
+    return Math.max(0, Math.ceil((this.deadlineAt - Date.now()) / 1000));
+  }
+
+  private revealSeats(): PublicSnapshot["reveal"] {
+    return this.seats.map((seat) => {
+      const role = seat.roleId ? ROLES[seat.roleId] : null;
+      return {
+        seatId: seat.id,
+        nickname: seat.nickname,
+        alive: seat.alive,
+        roleId: role?.id ?? "civilian",
+        roleName: role?.name ?? "",
+        faction: role?.faction ?? "lighthouse",
+        factionLabel: role ? FACTION_LABEL[role.faction] : "",
+      };
+    });
   }
 
   private tipsFor(seat: SeatState): Array<{ id: string; text: string }> {

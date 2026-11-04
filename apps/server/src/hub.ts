@@ -292,10 +292,17 @@ export class RoomHub {
   }
 
   private arm(room: RoomRec): void {
-    if (!this.timers) return;
     this.clearTimer(room);
+    if (!this.timers) {
+      room.engine.setPhaseDeadline(null);
+      return;
+    }
     const ms = this.phaseMs(room.engine.getPhase());
-    if (ms == null) return;
+    if (ms == null) {
+      room.engine.setPhaseDeadline(null);
+      return;
+    }
+    room.engine.setPhaseDeadline(Date.now() + ms);
     room.timer = setTimeout(() => {
       room.timer = undefined;
       if (room.engine.getPhase() === "ended") return;
