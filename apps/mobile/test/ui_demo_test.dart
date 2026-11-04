@@ -30,14 +30,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key("landscape-table")), findsOneWidget);
     expect(find.byKey(const Key("scene-day_talk")), findsOneWidget);
-    expect(find.text("送出"), findsOneWidget);
-    expect(find.text("熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。"), findsOneWidget);
+    expect(find.text("跟票"), findsOneWidget);
+    expect(find.text("而家做咩：講／釘"), findsOneWidget);
+    expect(find.text("熄燈保一個人唔會被帶走。成功後下一夜唔可以再用。"), findsNothing);
 
     await tester.tap(find.byKey(const Key("demo-screen:night")));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key("scene-night")), findsOneWidget);
-    expect(find.text("掩護呢個人"), findsOneWidget);
-    expect(find.text("發動"), findsOneWidget);
+    expect(find.text("保邊個"), findsOneWidget);
+    expect(find.text("而家做咩：發動"), findsOneWidget);
     expect(find.byKey(const Key("role-bust:${ArtCatalog.cover}")), findsWidgets);
     expect(tester.takeException(), isNull);
   });

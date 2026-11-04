@@ -19,13 +19,6 @@ const silenceTemplates = <String>[
   "小心灰頻，唔好亂送頭。",
 ];
 
-const talkTemplates = <String>[
-  "我暫時未有實錘。",
-  "我傾向跟多數。",
-  "隔離要小心。",
-  "未見足夠失聯痕跡。",
-];
-
 class TablePage extends StatefulWidget {
   const TablePage({super.key, required this.controller});
 
@@ -36,16 +29,11 @@ class TablePage extends StatefulWidget {
 }
 
 class _TablePageState extends State<TablePage> {
-  final _text = TextEditingController();
   String? _target;
-  String _nightAction = "skip";
   bool _anonymous = false;
-
-  @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
-  }
+  String? _talkVerb;
+  String _skillMode = "";
+  String _seenPhase = "";
 
   @override
   Widget build(BuildContext context) {
@@ -59,14 +47,30 @@ class _TablePageState extends State<TablePage> {
   }
 
   Widget _scaffold(BuildContext context, PublicView public, PrivateView mine, bool landscape) {
+    _syncPhase(public.phase);
+    final phaseTitle = public.phaseLabel.isEmpty ? public.phase : public.phaseLabel;
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: landscape ? 48 : null,
-        title: Text(public.phaseLabel.isEmpty ? public.phase : public.phaseLabel),
+        toolbarHeight: landscape ? 78 : 86,
+        titleSpacing: 12,
+        title: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(phaseTitle, style: const TextStyle(fontSize: 12, height: 1, fontWeight: FontWeight.w700, color: Color(0xFF9AA7B5))),
+            const SizedBox(height: 2),
+            CoachLine(phase: public.phase, maxLines: 1),
+          ],
+        ),
         actions: [
           PhaseClock(
             seconds: widget.controller.secondsLeft ?? public.secondsLeft,
             total: widget.controller.phaseBudget ?? public.secondsLeft,
+          ),
+          TextButton(
+            key: const Key("open-detail"),
+            onPressed: () => _openDetail(context, public, mine),
+            child: const Text("詳情"),
           ),
           IconButton(
             tooltip: "角色圖鑑",
@@ -93,7 +97,7 @@ class _TablePageState extends State<TablePage> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               children: [
                 ..._statusBlock(public, mine),
-                if (mine.role != null) _RoleCard(mine: mine),
+                if (mine.role != null) _RoleCard(mine: mine, showEssay: !hidesRoleEssay(public.phase)),
                 ..._recordBlock(public),
                 const SizedBox(height: 8),
                 Wrap(
@@ -171,7 +175,7 @@ class _TablePageState extends State<TablePage> {
                             visualDensity: VisualDensity.compact,
                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          child: _actions(public, mine, sideBySide: true),
+                          child: _actions(public, mine),
                         ),
                       ),
                     ),
@@ -201,7 +205,7 @@ class _TablePageState extends State<TablePage> {
             if (mine.role != null)
               ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: identityCap),
-                child: SingleChildScrollView(child: _landscapeIdentity(mine)),
+                child: SingleChildScrollView(child: _landscapeIdentity(public, mine)),
               ),
           ],
         );
@@ -259,7 +263,7 @@ class _TablePageState extends State<TablePage> {
                       softWrap: true,
                     ),
                     const SizedBox(height: 8),
-                    if (role != null) _roleCopy(mine, titleSize: Theme.of(context).textTheme.titleMedium),
+                    if (role != null) _roleCopy(mine, titleSize: Theme.of(context).textTheme.titleMedium, showEssay: true),
                     const SizedBox(height: 10),
                     Theme(
                       data: Theme.of(context).copyWith(
@@ -278,7 +282,7 @@ class _TablePageState extends State<TablePage> {
     );
   }
 
-  Widget _landscapeIdentity(PrivateView mine) {
+  Widget _landscapeIdentity(PublicView public, PrivateView mine) {
     final role = mine.role!;
     return Padding(
       padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
@@ -294,7 +298,13 @@ class _TablePageState extends State<TablePage> {
             children: [
               RolePortrait(role: role, seatId: mine.seatId, width: 52, height: 66),
               const SizedBox(width: 8),
-              Expanded(child: _roleCopy(mine, titleSize: Theme.of(context).textTheme.titleMedium)),
+              Expanded(
+                child: _roleCopy(
+                  mine,
+                  titleSize: Theme.of(context).textTheme.titleMedium,
+                  showEssay: !hidesRoleEssay(public.phase),
+                ),
+              ),
             ],
           ),
         ),
@@ -302,17 +312,19 @@ class _TablePageState extends State<TablePage> {
     );
   }
 
-  Widget _roleCopy(PrivateView mine, {TextStyle? titleSize}) {
+  Widget _roleCopy(PrivateView mine, {TextStyle? titleSize, required bool showEssay}) {
     final role = mine.role!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text("你嘅身分", style: Theme.of(context).textTheme.labelLarge),
         Text("${role.name} · ${role.factionLabel}", style: titleSize ?? Theme.of(context).textTheme.titleLarge),
-        if (role.mnemonic.isNotEmpty)
+        if (showEssay && role.mnemonic.isNotEmpty)
           Text("記法：${role.mnemonic}", style: const TextStyle(color: Color(0xFFE7C27A))),
-        const SizedBox(height: 4),
-        Text(role.skill, softWrap: true),
+        if (showEssay) ...[
+          const SizedBox(height: 4),
+          Text(role.skill, softWrap: true),
+        ],
         if (mine.teammates.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(top: 6),
@@ -330,9 +342,6 @@ class _TablePageState extends State<TablePage> {
   List<Widget> _statusBlock(PublicView public, PrivateView mine, {bool compact = false}) {
     final gap = compact ? 4.0 : 8.0;
     return [
-      CoachLine(phase: public.phase),
-      const SizedBox(height: 4),
-      ..._tips(mine),
       Text(public.banner, softWrap: true),
       SizedBox(height: gap),
       Text("第 ${public.round} 輪 · 第 ${public.night} 夜 · 失聯 ${public.disconnects}／${public.disconnectsToWin}", softWrap: true),
@@ -429,153 +438,199 @@ class _TablePageState extends State<TablePage> {
     return SceneBackdrop.fill(phase: phase, child: child);
   }
 
-  List<Widget> _silenceChannel(PublicView public, PrivateView mine) {
-    if (mine.role?.faction != "silence" || public.phase != "night") return const [];
-    return [
-      const Text("消音組夜訊。只可以用模板，唔會公開。"),
-      const SizedBox(height: 6),
-      Wrap(
-        spacing: 6,
-        children: [
-          for (final line in silenceTemplates)
-            ActionChip(
-              label: Text(line),
-              onPressed: () => widget.controller.silence(line),
-            ),
-        ],
-      ),
-      for (final note in mine.silenceChannel)
-        Padding(
-          padding: const EdgeInsets.only(top: 4),
-          child: Text("${note.nickname}：${note.text}"),
-        ),
-      const SizedBox(height: 8),
-    ];
+  void _syncPhase(String phase) {
+    if (_seenPhase == phase) return;
+    _seenPhase = phase;
+    _target = null;
+    _anonymous = false;
+    _talkVerb = null;
+    _skillMode = "";
   }
 
-  List<Widget> _tips(PrivateView mine) {
-    final visible = mine.tips.where((tip) => !widget.controller.dismissedTips.contains(tip.id));
-    return [
-      for (final tip in visible)
-        Card(
-          color: const Color(0xFF243044),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
-            child: Row(
-              children: [
-                Expanded(child: Text(tip.text)),
-                IconButton(
-                  onPressed: () => widget.controller.dismissTip(tip.id),
-                  icon: const Icon(Icons.close, size: 18),
-                  tooltip: "收起提示",
-                ),
-              ],
-            ),
-          ),
-        ),
-    ];
-  }
-
-  List<Widget> _skillControls(PublicView public, PrivateView mine) {
-    if (mine.skillActions.isEmpty) return const [];
-    return [
-      for (final action in mine.skillActions)
-        if (action.action == "pin" || action.action == "fake_plant")
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: FilledButton(
-              onPressed: () {
-                final text = _text.text.trim();
-                if (text.isEmpty) return;
-                widget.controller.skill(action.action, text: text);
-                _text.clear();
-              },
-              child: Text(action.label),
-            ),
-          )
-        else if (action.action == "link")
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: FilledButton(
-              onPressed: _target == null ? null : () => widget.controller.skill("link", targetId: _target),
-              child: Text(action.label),
-            ),
-          )
-        else if (action.action == "mark")
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("私密標記。撳一下標記，再撳取消。唔會話你知係咪消音。"),
-                const SizedBox(height: 6),
-                Wrap(
-                  spacing: 6,
-                  children: [
-                    for (final seat in public.seats.where((seat) => seat.alive && seat.id != mine.seatId))
-                      FilterChip(
-                        label: Text("${seat.id} ${seat.nickname}"),
-                        selected: mine.marks.contains(seat.id),
-                        onSelected: (selected) => widget.controller.mark(seat.id, marked: selected),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          )
-        else if (action.action == "fake_flag")
-          Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Wrap(
-              spacing: 6,
-              children: [
-                for (final pin in public.pins.where((item) => !item.unverified))
-                  ActionChip(
-                    label: Text("待核實｜${pin.text}"),
-                    onPressed: () => widget.controller.skill("fake_flag", targetId: pin.id),
-                  ),
-              ],
-            ),
-          ),
-      if (mine.skillActions.any((action) => action.action == "link"))
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Wrap(
-            spacing: 6,
+  void _openDetail(BuildContext context, PublicView public, PrivateView mine) {
+    final role = mine.role;
+    final tips = mine.tips.where((tip) => !widget.controller.dismissedTips.contains(tip.id));
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("詳情"),
+        content: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final seat in public.seats.where((seat) => seat.alive && seat.id != mine.seatId))
-                ChoiceChip(
-                  label: Text(seat.nickname),
-                  selected: _target == seat.id,
-                  onSelected: (_) => setState(() => _target = seat.id),
-                ),
+              Text("而家做咩：${coachLine(public.phase)}", style: const TextStyle(color: Color(0xFFE7C27A), fontWeight: FontWeight.w800)),
+              for (final line in coachDetail(public.phase))
+                Padding(padding: const EdgeInsets.only(top: 4), child: Text(line)),
+              if (role != null) ...[
+                const SizedBox(height: 12),
+                Text(role.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                if (role.mnemonic.isNotEmpty) Text("記法：${role.mnemonic}"),
+                const SizedBox(height: 4),
+                Text(role.skill),
+                if (role.when.isNotEmpty)
+                  Padding(padding: const EdgeInsets.only(top: 4), child: Text("幾時用：${role.when}")),
+              ],
+              for (final tip in tips) ...[
+                const SizedBox(height: 8),
+                Text(tip.text),
+              ],
             ],
           ),
         ),
-    ];
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("關閉")),
+        ],
+      ),
+    );
   }
 
-  Widget _actionPair({required bool sideBySide, required Widget first, required Widget second}) {
-    if (!sideBySide) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          first,
-          const SizedBox(height: 8),
-          second,
+  Future<void> _askLine(String title, void Function(String text) onSubmit) async {
+    final field = TextEditingController();
+    final text = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: field,
+          autofocus: true,
+          maxLength: 80,
+          decoration: InputDecoration(labelText: title),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("取消")),
+          FilledButton(onPressed: () => Navigator.pop(context, field.text), child: const Text("送出")),
         ],
-      );
+      ),
+    );
+    field.dispose();
+    if (!mounted || text == null) return;
+    final body = text.trim();
+    if (body.isEmpty) return;
+    onSubmit(body);
+  }
+
+  void _openSilence() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("夜訊"),
+        content: Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final line in silenceTemplates)
+              ActionChip(
+                label: Text(line),
+                onPressed: () {
+                  widget.controller.silence(line);
+                  Navigator.pop(context);
+                },
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text("關閉")),
+        ],
+      ),
+    );
+  }
+
+  List<PublicSeat> _others(PublicView public, PrivateView mine, {bool includeSelf = false}) {
+    return public.seats.where((seat) => seat.alive && (includeSelf || seat.id != mine.seatId)).toList();
+  }
+
+  Widget _cue(String action, {String fallback = ""}) {
+    return Text(
+      skillMnemonic(action, fallback: fallback),
+      key: Key("skill-cue:$action"),
+      style: const TextStyle(color: Color(0xFFE7C27A), fontSize: 22, fontWeight: FontWeight.w800, height: 1.1),
+    );
+  }
+
+  List<_ActMode> _modes(PublicView public, PrivateView mine) {
+    final modes = <_ActMode>[];
+    if (public.phase == "night") {
+      for (final action in mine.nightActions) {
+        if (action.action == "skip" || action.action == "mark") continue;
+        modes.add(_ActMode(action.action, "night", action.needsTarget, false, action.label));
+      }
     }
-    return Row(
+    for (final action in mine.skillActions) {
+      if (modes.any((mode) => mode.action == action.action)) continue;
+      final needsText = action.action == "pin" || action.action == "fake_plant";
+      modes.add(_ActMode(action.action, "skill", action.needsTarget || action.action == "mark" || action.action == "fake_flag", needsText, action.label));
+    }
+    return modes;
+  }
+
+  Widget _skillPicker(PublicView public, PrivateView mine) {
+    final modes = _modes(public, mine);
+    if (modes.isEmpty) return const SizedBox.shrink();
+    final active = modes.any((mode) => mode.action == _skillMode) ? _skillMode : modes.first.action;
+    final mode = modes.firstWhere((item) => item.action == active);
+    final seats = _others(public, mine, includeSelf: mode.action == "cover");
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Expanded(child: first),
-        const SizedBox(width: 8),
-        Expanded(child: second),
+        if (modes.length > 1)
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final item in modes)
+                ActionChip(
+                  label: Text(skillMnemonic(item.action, fallback: item.label)),
+                  onPressed: () => setState(() => _skillMode = item.action),
+                ),
+            ],
+          ),
+        _cue(mode.action, fallback: mode.label),
+        const SizedBox(height: 6),
+        if (mode.needsText)
+          FilledButton(
+            onPressed: () => _askLine(skillMnemonic(mode.action, fallback: mode.label), (text) {
+              widget.controller.skill(mode.action, text: text);
+            }),
+            child: Text(mode.action == "pin" ? "釘" : "放"),
+          )
+        else if (mode.action == "fake_flag")
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final pin in public.pins.where((item) => !item.unverified))
+                _TargetButton(
+                  label: pin.text,
+                  onPressed: () => widget.controller.skill("fake_flag", targetId: pin.id),
+                ),
+            ],
+          )
+        else if (mode.needsTarget)
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final seat in seats)
+                _TargetButton(
+                  label: seat.nickname,
+                  selected: mode.action == "mark" && mine.marks.contains(seat.id),
+                  onPressed: () {
+                    if (mode.source == "night") {
+                      widget.controller.night(mode.action, targetSeatId: seat.id);
+                    } else if (mode.action == "mark") {
+                      widget.controller.mark(seat.id, marked: !mine.marks.contains(seat.id));
+                    } else {
+                      widget.controller.skill(mode.action, targetId: seat.id);
+                    }
+                  },
+                ),
+            ],
+          ),
       ],
     );
   }
 
-  Widget _actions(PublicView public, PrivateView mine, {bool sideBySide = false}) {
+  Widget _actions(PublicView public, PrivateView mine) {
     if (!mine.alive) return const Text("你已離場，可以繼續睇公開頻道。");
     if (public.winner != null || public.phase == "ended") {
       return const Text("勝負已定。可以離開再開一房。");
@@ -613,36 +668,56 @@ class _TablePageState extends State<TablePage> {
             ],
           );
         }
+        final seats = _others(public, mine);
         return Column(
+          key: const Key("talk-chips"),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SkillCue(public: public, mine: mine),
             Wrap(
               spacing: 6,
+              runSpacing: 6,
               children: [
-                for (final phrase in talkTemplates) ActionChip(label: Text(phrase), onPressed: () => _text.text = phrase),
+                for (final chip in talkChips)
+                  ActionChip(
+                    key: Key("talk-chip:${chip.verb}"),
+                    label: Text(chip.verb),
+                    onPressed: () {
+                      if (chip.needsSeat) {
+                        setState(() => _talkVerb = _talkVerb == chip.verb ? null : chip.verb);
+                      } else {
+                        widget.controller.chat(chip.line);
+                        setState(() => _talkVerb = null);
+                      }
+                    },
+                  ),
+                ActionChip(
+                  key: const Key("talk-free"),
+                  label: const Text("自己寫"),
+                  onPressed: () => _askLine("自己寫", widget.controller.chat),
+                ),
               ],
             ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _text,
-              decoration: const InputDecoration(labelText: "短句"),
-            ),
-            const SizedBox(height: 8),
-            ..._skillControls(public, mine),
-            _actionPair(
-              sideBySide: sideBySide,
-              first: FilledButton(
-                onPressed: () {
-                  final text = _text.text.trim();
-                  if (text.isEmpty) return;
-                  widget.controller.chat(text);
-                  _text.clear();
-                },
-                child: const Text("送出", textAlign: TextAlign.center),
+            if (_talkVerb != null) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final seat in seats)
+                    _TargetButton(
+                      label: seat.nickname,
+                      onPressed: () {
+                        widget.controller.chat("$_talkVerb ${seat.nickname}");
+                        setState(() => _talkVerb = null);
+                      },
+                    ),
+                ],
               ),
-              second: OutlinedButton(onPressed: widget.controller.ready, child: const Text("準備好", textAlign: TextAlign.center)),
-            ),
+            ],
+            const SizedBox(height: 8),
+            _skillPicker(public, mine),
+            const SizedBox(height: 8),
+            FilledButton(onPressed: widget.controller.ready, child: const Text("準備好")),
           ],
         );
       case "draft":
@@ -650,54 +725,52 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SkillCue(public: public, mine: mine),
-            const Text("私人草稿。留空都得。"),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _text,
-              decoration: const InputDecoration(labelText: "草稿"),
-            ),
+            _skillPicker(public, mine),
             const SizedBox(height: 8),
             FilledButton(
               onPressed: () {
-                widget.controller.draft(_text.text);
+                widget.controller.draft("");
                 widget.controller.ready();
               },
-              child: const Text("交草稿並準備", textAlign: TextAlign.center),
+              child: const Text("跳過"),
+            ),
+            TextButton(
+              onPressed: () => _askLine("寫", (text) {
+                widget.controller.draft(text);
+                widget.controller.ready();
+              }),
+              child: const Text("寫"),
             ),
           ],
         );
       case "vote":
-        final choices = public.seats.where((seat) => seat.alive && seat.id != mine.seatId);
+        final choices = _others(public, mine);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SkillCue(public: public, mine: mine),
-            Text(mine.muted ? "你被封口，而家只可以投票。" : "投一個仍在場嘅人，或者棄權。平票就流局，唔會隔離。結算先公開票簿。"),
-            if (mine.anonymousVote) ...[
-              const SizedBox(height: 8),
+            if (mine.muted) const Text("你被封口，而家只可以投票。"),
+            if (mine.anonymousVote)
               FilterChip(
                 label: const Text("匿名票（每局一次）"),
                 selected: _anonymous,
                 onSelected: (value) => setState(() => _anonymous = value),
               ),
-            ],
-            const SizedBox(height: 8),
             Wrap(
-              spacing: 6,
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 for (final seat in choices)
-                  ChoiceChip(
-                    label: Text("${seat.id} ${seat.nickname}"),
+                  _TargetButton(
+                    label: seat.nickname,
                     selected: _target == seat.id,
-                    onSelected: (_) => setState(() => _target = seat.id),
+                    onPressed: () => setState(() => _target = seat.id),
                   ),
               ],
             ),
             const SizedBox(height: 8),
             FilledButton(
               onPressed: _target == null ? null : () => widget.controller.vote(_target, anonymous: _anonymous),
-              child: const Text("確認投票", textAlign: TextAlign.center),
+              child: const Text("確認投票"),
             ),
             TextButton(
               onPressed: () => widget.controller.vote(null, anonymous: _anonymous),
@@ -707,71 +780,61 @@ class _TablePageState extends State<TablePage> {
           ],
         );
       case "night":
-        final nightActions = mine.nightActions.where((item) => item.action != "mark").toList();
-        if (nightActions.isEmpty) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              SkillCue(public: public, mine: mine),
-              ..._silenceChannel(public, mine),
-              ..._skillControls(public, mine),
-              const SizedBox(height: 8),
-              FilledButton(onPressed: widget.controller.ready, child: const Text("跳過", textAlign: TextAlign.center)),
-            ],
-          );
-        }
-        final selected = nightActions.where((item) => item.action == _nightAction);
-        final choice = selected.isEmpty ? nightActions.first : selected.first;
-        final targets = public.seats.where((seat) => seat.alive && (choice.action == "cover" || seat.id != mine.seatId));
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SkillCue(public: public, mine: mine),
-            ..._silenceChannel(public, mine),
-            ..._skillControls(public, mine),
-            Wrap(
-              spacing: 6,
-              children: [
-                for (final action in nightActions)
-                  ChoiceChip(
-                    label: Text(action.label),
-                    selected: choice.action == action.action,
-                    onSelected: (_) => setState(() => _nightAction = action.action),
-                  ),
-              ],
-            ),
-            if (choice.needsTarget) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (final seat in targets)
-                    ChoiceChip(
-                      label: Text("${seat.id} ${seat.nickname}"),
-                      selected: _target == seat.id,
-                      onSelected: (_) => setState(() => _target = seat.id),
-                    ),
-                ],
+            _skillPicker(public, mine),
+            if (mine.role?.faction == "silence")
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(onPressed: _openSilence, child: const Text("夜訊")),
               ),
-            ],
+            if (mine.silenceChannel.isNotEmpty)
+              for (final note in mine.silenceChannel)
+                Text("${note.nickname}：${note.text}"),
             const SizedBox(height: 8),
-            const Text("未撳就當跳過。"),
-            const SizedBox(height: 8),
-            _actionPair(
-              sideBySide: sideBySide,
-              first: FilledButton(
-                onPressed: choice.needsTarget && _target == null
-                    ? null
-                    : () => widget.controller.night(choice.action, targetSeatId: choice.needsTarget ? _target : null),
-                child: const Text("發動", textAlign: TextAlign.center),
-              ),
-              second: OutlinedButton(onPressed: widget.controller.ready, child: const Text("跳過", textAlign: TextAlign.center)),
-            ),
+            OutlinedButton(onPressed: widget.controller.ready, child: const Text("跳過")),
           ],
         );
       default:
         return Text(public.phaseLabel);
     }
+  }
+}
+
+class _ActMode {
+  const _ActMode(this.action, this.source, this.needsTarget, this.needsText, this.label);
+
+  final String action;
+  final String source;
+  final bool needsTarget;
+  final bool needsText;
+  final String label;
+}
+
+class _TargetButton extends StatelessWidget {
+  const _TargetButton({required this.label, required this.onPressed, this.selected = false});
+
+  final String label;
+  final VoidCallback onPressed;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 128,
+      height: 48,
+      child: FilledButton(
+        style: FilledButton.styleFrom(
+          backgroundColor: selected ? const Color(0xFFE7C27A) : const Color(0xFF243044),
+          foregroundColor: selected ? const Color(0xFF0E141B) : const Color(0xFFE7C27A),
+          side: const BorderSide(color: Color(0xFFE7C27A), width: 2),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+        ),
+        onPressed: onPressed,
+        child: Text(label, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis),
+      ),
+    );
   }
 }
 
@@ -812,9 +875,10 @@ class _WinnerCard extends StatelessWidget {
 }
 
 class _RoleCard extends StatelessWidget {
-  const _RoleCard({required this.mine});
+  const _RoleCard({required this.mine, required this.showEssay});
 
   final PrivateView mine;
+  final bool showEssay;
 
   @override
   Widget build(BuildContext context) {
@@ -833,8 +897,10 @@ class _RoleCard extends StatelessWidget {
                 children: [
                   Text("你嘅身分", style: Theme.of(context).textTheme.labelLarge),
                   Text("${role.name} · ${role.factionLabel}", style: Theme.of(context).textTheme.titleLarge),
-                  const SizedBox(height: 4),
-                  Text(role.skill, softWrap: true),
+                  if (showEssay) ...[
+                    const SizedBox(height: 4),
+                    Text(role.skill, softWrap: true),
+                  ],
                   if (mine.teammates.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 6),

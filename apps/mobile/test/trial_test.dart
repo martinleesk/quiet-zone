@@ -147,8 +147,11 @@ void main() {
     expect(find.byKey(const Key("landscape-table")), findsOneWidget);
     expect(find.byKey(const Key("scene-draft")), findsOneWidget);
     expect(find.byKey(const Key("coach-line")), findsOneWidget);
-    expect(find.text("呢段冇得用技能"), findsOneWidget);
-    expect(find.text("交草稿並準備"), findsOneWidget);
+    expect(find.text("而家做咩：寫（可跳）"), findsOneWidget);
+    expect(find.text("呢段冇得用技能"), findsNothing);
+    expect(find.text("跳過"), findsOneWidget);
+    await tester.tap(find.text("寫"));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), "試玩草稿：先聽完再隔離。");
     await tester.pump();
     expect(find.text("試玩草稿：先聽完再隔離。"), findsOneWidget);
@@ -164,10 +167,10 @@ void main() {
     ));
     await tester.pump();
     expect(find.byKey(const Key("scene-night")), findsOneWidget);
-    expect(find.byKey(const Key("skill-card")), findsOneWidget);
-    expect(find.text("發動技能"), findsOneWidget);
-    expect(find.text("臨時掩護"), findsOneWidget);
-    expect(find.text("發動"), findsOneWidget);
+    expect(find.byKey(const Key("skill-cue:cover")), findsOneWidget);
+    expect(find.text("保邊個"), findsOneWidget);
+    expect(find.text("而家做咩：發動"), findsOneWidget);
+    expect(find.text("發動技能"), findsNothing);
     controller.dispose();
   });
 

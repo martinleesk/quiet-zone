@@ -17,23 +17,43 @@ const COACH = {
   home: { line: "11 人隱藏身份。你要估邊三個係消音組。", bullets: ["燈亮講一句", "投票隔離", "熄燈先用技能"] },
   lobby: { line: "記住你係邊個，再開始燈亮", bullets: ["你坐一席", "其餘係 AI", "徽章會一直在"] },
   boot: { line: "記住身份，再去燈亮", bullets: ["睇你嘅名", "睇技能一句", "撳開始"] },
-  day_talk: { line: "講一句你懷疑邊個", bullets: ["有技能先撳發動", "講完撳準備好", "倒數見大數字"] },
-  draft: { line: "寫低你想點投票", bullets: ["可以留空", "然後準備", "平票就冇人走"] },
-  vote: { line: "揀一個人票走", bullets: ["平票就冇人走", "可以棄權", "撳準備先結算"] },
+  day_talk: { line: "講／釘", bullets: ["撳短動詞就講", "疑、保要再揀人", "自己寫收埋"] },
+  draft: { line: "寫（可跳）", bullets: ["可以留空", "寫完先交", "跳過都得"] },
+  vote: { line: "揀", bullets: ["平票就冇人走", "可以棄權", "撳準備先結算"] },
   resolve: { line: "等幾秒就熄燈", bullets: [] },
-  night: { line: "熄燈先撳發動", bullets: ["有技能先揀目標", "冇就撳跳過", "倒數見大數字"] },
+  night: { line: "發動", bullets: ["撳席位就發動", "冇就跳過", "全文喺詳情同圖鑑"] },
   check: { line: "睇下有冇人贏", bullets: [] },
   ended: { line: "局完，身份公開", bullets: [] },
 };
 
-const TALK = ["我暫時未有實錘。", "我傾向跟多數。", "隔離要小心。", "未見足夠失聯痕跡。"];
+const TALK_CHIPS = [
+  { id: "suspect", verb: "疑", needsSeat: true },
+  { id: "guard", verb: "保", needsSeat: true },
+  { id: "follow", verb: "跟票", line: "跟票" },
+  { id: "pins", verb: "睇線報", line: "睇線報" },
+  { id: "none", verb: "未實錘", line: "未實錘" },
+  { id: "watch", verb: "觀望", line: "觀望" },
+  { id: "careful", verb: "小心", line: "小心錯票" },
+  { id: "listen", verb: "再聽", line: "再聽一輪" },
+];
+const CUE = {
+  disconnect: "帶走",
+  cover: "保邊個",
+  sweep: "掃邊個",
+  mark: "標邊個",
+  seal: "封邊個",
+  pin: "釘一句",
+  link: "查邊個",
+  fake_plant: "放假料",
+  fake_flag: "標未核",
+  skip: "跳過",
+};
 const SILENCE = ["今夜我建議失聯一個燈塔席。", "可能有掩護，換一個目標。", "我跟組內嘅選擇。", "今輪跳過，唔好暴露。", "小心灰頻，唔好亂送頭。"];
 
 const app = document.getElementById("app");
 const phaseLabel = document.getElementById("phase-label");
 const roleChip = document.getElementById("role-chip");
 const coachEl = document.getElementById("coach");
-const coachArrows = document.getElementById("coach-arrows");
 const clockEl = document.getElementById("clock");
 const clockUnit = document.getElementById("clock-unit");
 const meter = document.getElementById("meter");
@@ -48,6 +68,10 @@ let buffer = "";
 let selected = "";
 let nightAction = "";
 let anonymous = false;
+let talkVerb = "";
+let writeOpen = false;
+let silenceOpen = false;
+let detailOpen = false;
 let lastPhase = "";
 let paintedPhase = "";
 let serverSeconds = null;
@@ -158,13 +182,14 @@ function seatRing(pub, priv) {
   return `<div class="stage"><div class="ring">${seats.slice(0, mid).map((seat) => seatCard(pub, priv, seat)).join("")}</div><div class="table-line"></div><div class="ring">${seats.slice(mid).map((seat) => seatCard(pub, priv, seat)).join("")}</div></div>`;
 }
 
-function roleCard(priv) {
+function roleCard(priv, phase) {
   const role = priv.role;
   if (!role) return "";
   const mates = (priv.teammates || []).map((mate) => `${esc(mate.nickname)}（${esc(mate.roleName)}）`).join("、");
   const marks = (priv.marks || []).join("、");
-  const memo = role.mnemonic ? `<p class="small">記法：${esc(role.mnemonic)}</p>` : "";
-  return `<div class="me-card"><img class="${bustClass(role.id, priv.seatId)}" src="${esc(bustSrc(role.id, priv.seatId))}" alt=""><div><div class="kicker">你嘅身分</div><h2>${esc(role.name)} · ${esc(role.factionLabel)}</h2>${memo}<p>${esc(role.skill)}</p>${mates ? `<p>組員：${mates}</p>` : ""}${marks ? `<p>你嘅標記：${esc(marks)}</p>` : ""}</div></div>`;
+  const actionPhase = phase === "day_talk" || phase === "draft" || phase === "vote" || phase === "night";
+  const essay = actionPhase ? "" : `${role.mnemonic ? `<p class="small">記法：${esc(role.mnemonic)}</p>` : ""}<p>${esc(role.skill)}</p>`;
+  return `<div class="me-card"><img class="${bustClass(role.id, priv.seatId)}" src="${esc(bustSrc(role.id, priv.seatId))}" alt=""><div><div class="kicker">你嘅身分</div><h2>${esc(role.name)} · ${esc(role.factionLabel)}</h2>${essay}${mates ? `<p>組員：${mates}</p>` : ""}${marks ? `<p>你嘅標記：${esc(marks)}</p>` : ""}</div></div>`;
 }
 
 function logBlock(pub, priv) {
@@ -177,7 +202,6 @@ function logBlock(pub, priv) {
     lines.push(`<div class="card"><div class="kicker">終局</div><h2>${esc(pub.winner.factionLabel)}</h2><p>${esc(pub.winner.reason)}</p><div class="seats">${reveal}</div></div>`);
   }
   if (priv.sealCard) lines.push(`<div class="seal">${esc(priv.sealCard)}</div>`);
-  for (const tip of priv.tips || []) lines.push(`<div class="card">${esc(tip.text)}</div>`);
   lines.push(`<p>第 ${esc(pub.round)} 輪 · 第 ${esc(pub.night)} 夜 · 失聯 ${esc(pub.disconnects)}／${esc(pub.disconnectsToWin)}</p>`);
   if (pub.banner) lines.push(`<p>${esc(pub.banner)}</p>`);
   const comp = pub.composition || {};
@@ -195,8 +219,62 @@ function logBlock(pub, priv) {
   return lines.join("");
 }
 
-function chips(items, act, current) {
-  return `<div class="chips">${items.map((item) => `<button type="button" class="pick${item.id === current ? " on" : ""}" data-act="${act}" data-id="${esc(item.id)}">${esc(item.label)}</button>`).join("")}</div>`;
+function cueOf(action, label) {
+  if (CUE[action]) return CUE[action];
+  const raw = String(label || "發動").trim();
+  return Array.from(raw).slice(0, 4).join("") || "發動";
+}
+
+function targetGrid(seats, act, marked) {
+  const marks = marked || new Set();
+  return `<div class="target-grid">${seats.map((seat) => {
+    const on = act === "pick" ? selected === seat.id : marks.has(seat.id);
+    return `<button type="button" class="target${on ? " on" : ""}" data-act="${act}" data-id="${esc(seat.id)}"><span class="target-name">${esc(seat.nickname)}</span><span class="target-id">${esc(seat.id)}</span></button>`;
+  }).join("")}</div>`;
+}
+
+function skillModes(pub, priv) {
+  const modes = [];
+  if (pub.phase === "night") {
+    for (const action of priv.nightActions || []) {
+      if (action.action === "skip" || action.action === "mark") continue;
+      modes.push(action);
+    }
+  }
+  for (const action of priv.skillActions || []) {
+    if (modes.some((mode) => mode.action === action.action)) continue;
+    modes.push(action);
+  }
+  return modes;
+}
+
+function skillPicker(pub, priv) {
+  const modes = skillModes(pub, priv);
+  if (!modes.length) return "";
+  const current = modes.some((item) => item.action === nightAction) ? nightAction : modes[0].action;
+  nightAction = current;
+  const choice = modes.find((item) => item.action === current);
+  const switcher = modes.length > 1
+    ? `<div class="verb-row">${modes.map((item) => `<button type="button" class="verb-chip${item.action === current ? " on" : ""}" data-act="night-pick" data-id="${esc(item.action)}">${esc(cueOf(item.action, item.label))}</button>`).join("")}</div>`
+    : "";
+  const cue = `<div class="cue" id="skill-cue">${esc(cueOf(choice.action, choice.label))}</div>`;
+  if (choice.action === "pin" || choice.action === "fake_plant") {
+    return `<div class="skill-block">${switcher}${cue}<button class="verb" type="button" data-act="skill-text" data-id="${esc(choice.action)}">${choice.action === "pin" ? "釘" : "放"}</button></div>`;
+  }
+  if (choice.action === "fake_flag") {
+    const pins = (pub.pins || []).filter((pin) => !pin.unverified);
+    const buttons = `<div class="target-grid">${pins.map((pin) => `<button type="button" class="target" data-act="flag" data-id="${esc(pin.id)}"><span class="target-name">${esc(Array.from(pin.text || "").slice(0, 8).join(""))}</span></button>`).join("")}</div>`;
+    return `<div class="skill-block">${switcher}${cue}${buttons}</div>`;
+  }
+  const seats = (pub.seats || []).filter((seat) => seat.alive && (choice.action === "cover" || seat.id !== priv.seatId));
+  const act = choice.action === "mark" ? "mark" : (pub.phase === "night" && (priv.nightActions || []).some((item) => item.action === choice.action) ? "night-seat" : "skill-seat");
+  const marks = act === "mark" ? new Set(priv.marks || []) : new Set();
+  return `<div class="skill-block">${switcher}${cue}${targetGrid(seats, act, marks)}</div>`;
+}
+
+function writeBox(label) {
+  if (!writeOpen) return "";
+  return `<label class="field"><span>${esc(label)}</span><input id="line" type="text" maxlength="80" value="${esc(buffer)}"></label>`;
 }
 
 function actions(pub, priv) {
@@ -205,85 +283,73 @@ function actions(pub, priv) {
   if (pub.phase === "resolve" || pub.phase === "check") return `<p>結算中。</p>`;
   if (priv.ready && pub.phase !== "day_talk" && pub.phase !== "lobby") return `<p>已準備，等階段推進。</p>`;
   if (priv.muted && (pub.phase === "day_talk" || pub.phase === "draft")) {
-    return `<p>封口中：呢個階段只可以等投票，唔可以發言。</p><button class="btn fill" type="button" data-act="ready">準備好</button>`;
+    return `<p>封口中：呢個階段只可以等投票，唔可以發言。</p><button class="verb" type="button" data-act="ready">準備好</button>`;
   }
-  if (pub.phase === "boot") return `<button class="btn fill" type="button" data-act="ready">我睇完身分</button>`;
+  if (pub.phase === "boot") return `<button class="verb" type="button" data-act="ready">我睇完身分</button>`;
   if (pub.phase === "day_talk") {
-    return `${skillCard(pub, priv)}
-      ${chips(TALK.map((line) => ({ id: line, label: line })), "phrase", "")}
-      <label class="field"><span>短句</span><input id="line" type="text" maxlength="80" value="${esc(buffer)}"></label>
-      <div class="row-btns"><button class="btn fill" type="button" data-act="chat">送出</button><button class="btn" type="button" data-act="ready">準備好</button></div>`;
+    const chipsHtml = TALK_CHIPS.map((chip) => `<button type="button" class="verb-chip${talkVerb === chip.id ? " on" : ""}" data-act="talk-verb" data-id="${esc(chip.id)}">${esc(chip.verb)}</button>`).join("");
+    const chip = TALK_CHIPS.find((item) => item.id === talkVerb);
+    const seats = chip && chip.needsSeat ? targetGrid(aliveOthers(pub, priv), "talk-seat") : "";
+    const free = writeOpen ? `${writeBox("自己寫")}<button class="verb ghost" type="button" data-act="chat">送出</button>` : "";
+    return `<div class="verb-row" id="talk-chips">${chipsHtml}<button type="button" class="verb-chip ghost" data-act="toggle-write">自己寫</button></div>
+      ${seats}
+      ${skillPicker(pub, priv)}
+      ${free}
+      <button class="verb" type="button" data-act="ready">準備好</button>`;
   }
   if (pub.phase === "draft") {
-    return `${skillCard(pub, priv)}
-      <p>私人草稿。留空都得。</p>
-      <label class="field"><span>草稿</span><input id="line" type="text" maxlength="80" value="${esc(buffer)}"></label>
-      <button class="btn fill" type="button" data-act="draft">交草稿並準備</button>`;
+    const free = writeOpen ? `${writeBox("寫")}<button class="verb" type="button" data-act="draft">交低</button>` : "";
+    return `${skillPicker(pub, priv)}
+      <button class="verb" type="button" data-act="draft-skip">跳過</button>
+      <button class="verb ghost" type="button" data-act="toggle-write">寫</button>
+      ${free}`;
   }
   if (pub.phase === "vote") {
-    const choices = aliveOthers(pub, priv).map((seat) => ({ id: seat.id, label: `${seat.id} ${seat.nickname}` }));
-    const anon = priv.anonymousVote ? `<button type="button" class="pick${anonymous ? " on" : ""}" data-act="anon">匿名票（每局一次）</button>` : "";
-    return `${skillCard(pub, priv)}
-      <p>${priv.muted ? "你被封口，而家只可以投票。" : "投一個仍在場嘅人，或者棄權。平票就冇人走。"}</p>
-      ${anon}
-      ${chips(choices, "pick", selected)}
-      <button class="btn fill" type="button" data-act="vote" ${selected ? "" : "disabled"}>確認投票</button>
-      <div class="row-btns"><button class="btn" type="button" data-act="abstain">棄權</button><button class="btn" type="button" data-act="ready">準備好</button></div>`;
+    const anon = priv.anonymousVote ? `<button type="button" class="verb-chip ghost${anonymous ? " on" : ""}" data-act="anon">匿名票（每局一次）</button>` : "";
+    const note = priv.muted ? `<p>你被封口，而家只可以投票。</p>` : "";
+    return `${note}${anon}
+      ${targetGrid(aliveOthers(pub, priv), "pick")}
+      <button class="verb" type="button" data-act="vote" ${selected ? "" : "disabled"}>確認投票</button>
+      <div class="row-btns"><button class="verb ghost" type="button" data-act="abstain">棄權</button><button class="verb ghost" type="button" data-act="ready">準備好</button></div>`;
   }
   if (pub.phase === "night") {
-    const night = (priv.nightActions || []).filter((item) => item.action !== "mark");
     const silence = priv.role && priv.role.faction === "silence"
-      ? `<p class="small">夜訊只可以用模板，唔會公開。</p>${chips(SILENCE.map((line) => ({ id: line, label: line })), "silence", "")}`
+      ? `<button class="verb ghost" type="button" data-act="toggle-silence">夜訊</button>${silenceOpen ? `<div class="verb-row">${SILENCE.map((line) => `<button type="button" class="verb-chip ghost" data-act="silence" data-id="${esc(line)}">${esc(line)}</button>`).join("")}</div>` : ""}`
       : "";
-    if (!night.length) {
-      return `${skillCard(pub, priv)}${silence}<button class="verb" type="button" data-act="ready">跳過</button>`;
-    }
-    const current = night.some((item) => item.action === nightAction) ? nightAction : night[0].action;
-    nightAction = current;
-    const choice = night.find((item) => item.action === current);
-    const targets = (pub.seats || []).filter((seat) => seat.alive && (choice.action === "cover" || seat.id !== priv.seatId));
-    const targetChips = choice.needsTarget ? chips(targets.map((seat) => ({ id: seat.id, label: `${seat.id} ${seat.nickname}` })), "pick", selected) : "";
-    return `${skillCard(pub, priv)}${silence}
-      ${chips(night.map((item) => ({ id: item.action, label: item.label })), "night-pick", current)}
-      ${choice.needsTarget ? `<p class="small">揀目標</p>${targetChips}` : ""}
-      <p class="small">未撳就當跳過。</p>
-      <div class="row-btns"><button class="verb" type="button" data-act="night" ${(choice.needsTarget && !selected) ? "disabled" : ""}>發動</button><button class="verb ghost" type="button" data-act="ready">跳過</button></div>`;
+    return `${skillPicker(pub, priv)}${silence}<button class="verb ghost" type="button" data-act="ready">跳過</button>`;
   }
   return `<p>${esc(pub.phaseLabel || "")}</p>`;
-}
-
-function skillCard(pub, priv) {
-  if (pub.phase === "boot" || pub.phase === "resolve" || pub.phase === "check" || pub.phase === "ended") return "";
-  const skills = priv.skillActions || [];
-  const nightSkills = pub.phase === "night"
-    ? (priv.nightActions || []).filter((item) => item.action !== "skip" && item.action !== "mark")
-    : [];
-  if (!skills.length && !nightSkills.length) return `<p class="noskill">呢段冇得用技能</p>`;
-  const role = priv.role;
-  const blocks = [];
-  for (const action of skills) {
-    if (action.action === "pin" || action.action === "fake_plant") {
-      blocks.push(`<button class="verb" type="button" data-act="skill" data-id="${esc(action.action)}">發動</button>`);
-    } else if (action.action === "link") {
-      blocks.push(`<p class="small">揀目標</p>${chips(aliveOthers(pub, priv).map((seat) => ({ id: seat.id, label: seat.nickname })), "pick", selected)}`);
-      blocks.push(`<button class="verb" type="button" data-act="skill" data-id="link" ${selected ? "" : "disabled"}>發動</button>`);
-    } else if (action.action === "mark") {
-      const seats = aliveOthers(pub, priv).map((seat) => ({ id: seat.id, label: `${seat.id} ${seat.nickname}${(priv.marks || []).includes(seat.id) ? " · 已標" : ""}` }));
-      blocks.push(`<p class="small">撳一下暗標，再撳取消。唔會話你知係咪消音。</p>${chips(seats, "mark", "")}`);
-    } else if (action.action === "fake_flag") {
-      const pins = (pub.pins || []).filter((pin) => !pin.unverified).map((pin) => ({ id: pin.id, label: `未核實｜${pin.text}` }));
-      blocks.push(chips(pins, "flag", ""));
-    }
-  }
-  const explain = role ? `${esc(role.name)} · ${esc(role.skill)}` : "";
-  const when = role && role.when ? `<p class="small">幾時用：${esc(role.when)}</p>` : "";
-  return `<section class="skill-card" id="skill-card"><strong>發動技能</strong><p>${explain}</p>${when}${blocks.join("")}</section>`;
 }
 
 function setCoach(id) {
   const coach = COACH[id] || { line: "跟住下面嘅掣", bullets: [] };
   coachEl.textContent = `而家做咩：${coach.line}`;
-  coachArrows.innerHTML = (coach.bullets || []).slice(0, 3).map((item) => `<span>${esc(item)}</span>`).join("");
+}
+
+function detailHtml() {
+  const pub = view && view.public;
+  const priv = view && view.private;
+  const phase = pub ? pub.phase : "home";
+  const coach = COACH[phase] || { line: "跟住下面嘅掣", bullets: [] };
+  const bullets = (coach.bullets || []).map((item) => `<p>${esc(item)}</p>`).join("");
+  const role = priv && priv.role;
+  const essay = role
+    ? `<h3>${esc(role.name)} · ${esc(role.factionLabel || "")}</h3><p class="small">記法：${esc(role.mnemonic || "")}</p><p>${esc(role.skill || "")}</p>${role.when ? `<p class="small">幾時用：${esc(role.when)}</p>` : ""}`
+    : `<p class="small">身分未派。全文亦喺角色圖鑑。</p>`;
+  const tips = ((priv && priv.tips) || []).map((tip) => `<p>${esc(tip.text)}</p>`).join("");
+  return `<p class="coach">而家做咩：${esc(coach.line)}</p>${bullets}${essay}${tips}`;
+}
+
+function openDetail() {
+  detailOpen = true;
+  const panel = document.getElementById("phase-detail");
+  panel.hidden = false;
+  document.getElementById("detail-body").innerHTML = detailHtml();
+}
+
+function closeDetail() {
+  detailOpen = false;
+  document.getElementById("phase-detail").hidden = true;
 }
 
 function syncBarHeight() {
@@ -333,7 +399,7 @@ function paint() {
   const roundBit = phase === "lobby" ? "組席" : `第 ${pub.round || 0} 輪 · ${pub.phaseLabel || phase}`;
   phaseLabel.textContent = roundBit;
   const role = priv.role;
-  roleChip.textContent = role ? `${role.name} · ${role.factionLabel}${role.mnemonic ? ` · 記法 ${role.mnemonic}` : ""}` : "身份未派";
+  roleChip.textContent = role ? `${role.name} · ${role.factionLabel}` : "身份未派";
   setCoach(phase);
   leaveBtn.hidden = false;
   const phaseChanged = phase !== paintedPhase;
@@ -369,7 +435,7 @@ function paint() {
     <div class="scene ${sceneClass(phase)}">
       ${phase !== "boot" ? seatRing(pub, priv) : ""}
       ${phase === "boot" ? `<div class="stage"></div>` : ""}
-      ${roleCard(priv)}
+      ${roleCard(priv, phase)}
     </div>
     <div class="pane">
       <div class="scroll">${logBlock(pub, priv)}</div>
@@ -405,18 +471,6 @@ function showOverlay(pub, priv) {
     overlay.hidden = false;
     return;
   }
-  const tipId = pub.phase === "day_talk" && pub.round === 1 ? "day" : pub.phase === "night" && pub.night === 1 ? "night" : "";
-  if (tipId && !seenTips.has(tipId)) {
-    const coach = COACH[pub.phase];
-    const tips = (coach.bullets || []).slice(0, 3).map((item) => `<p>${esc(item)}</p>`).join("");
-    sheet.innerHTML = `<div class="sheet-card"><div>
-      <p class="coach">而家做咩：${esc(coach.line)}</p>
-      ${tips}
-      <button class="btn fill" type="button" data-act="dismiss-tip" data-id="${tipId}">知道了</button>
-    </div></div>`;
-    overlay.hidden = false;
-    return;
-  }
   overlay.hidden = true;
 }
 
@@ -435,6 +489,9 @@ function onMessage(raw) {
     selected = "";
     nightAction = "";
     anonymous = false;
+    talkVerb = "";
+    writeOpen = false;
+    silenceOpen = false;
     lastPhase = phase;
   }
   view = message;
@@ -480,11 +537,35 @@ app.addEventListener("click", (event) => {
     beginTrial(nick ? nick.value.trim() : "夜歸人");
     return;
   }
-  if (act === "phrase") {
-    buffer = id;
+  if (act === "toggle-write") {
+    writeOpen = !writeOpen;
+    paint();
     const line = document.getElementById("line");
-    if (line) line.value = id;
+    if (line) line.focus();
     return;
+  }
+  if (act === "toggle-silence") {
+    silenceOpen = !silenceOpen;
+    paint();
+    return;
+  }
+  if (act === "talk-verb") {
+    const chip = TALK_CHIPS.find((item) => item.id === id);
+    if (!chip) return;
+    if (chip.needsSeat) {
+      talkVerb = talkVerb === chip.id ? "" : chip.id;
+      paint();
+      return;
+    }
+    talkVerb = "";
+    return send({ type: "chat", text: chip.line });
+  }
+  if (act === "talk-seat") {
+    const chip = TALK_CHIPS.find((item) => item.id === talkVerb);
+    const seat = ((view && view.public.seats) || []).find((item) => item.id === id);
+    if (!chip || !seat) return;
+    talkVerb = "";
+    return send({ type: "chat", text: `${chip.verb} ${seat.nickname}` });
   }
   if (act === "pick" || act === "night-pick") {
     if (act === "pick") selected = id;
@@ -508,6 +589,11 @@ app.addEventListener("click", (event) => {
     buffer = "";
     return send({ type: "chat", text });
   }
+  if (act === "draft-skip") {
+    buffer = "";
+    send({ type: "draft", text: "" });
+    return send({ type: "ready" });
+  }
   if (act === "draft") {
     const text = document.getElementById("line")?.value || buffer;
     buffer = "";
@@ -516,17 +602,28 @@ app.addEventListener("click", (event) => {
   }
   if (act === "vote") return send({ type: "vote", targetSeatId: selected, anonymous });
   if (act === "abstain") return send({ type: "vote", targetSeatId: null, anonymous });
-  if (act === "night") {
-    const choice = (view?.private.nightActions || []).find((item) => item.action === nightAction) || (view?.private.nightActions || [])[0];
-    if (!choice) return send({ type: "ready" });
-    return send({ type: "night_action", action: choice.action, targetSeatId: choice.needsTarget ? selected : undefined });
+  if (act === "night-seat") {
+    const marks = (view?.private.marks) || [];
+    if (nightAction === "mark" && marks.includes(id)) {
+      return send({ type: "skill", action: "unmark", targetId: id });
+    }
+    return send({ type: "night_action", action: nightAction, targetSeatId: id });
   }
-  if (act === "skill") {
+  if (act === "skill-seat") {
+    return send({ type: "skill", action: nightAction || "link", targetId: id });
+  }
+  if (act === "skill-text") {
     const text = (document.getElementById("line")?.value || buffer).trim();
-    if ((id === "pin" || id === "fake_plant") && !text) return;
-    send({ type: "skill", action: id, text, targetId: selected });
-    if (id === "pin" || id === "fake_plant") buffer = "";
-    return;
+    if (!text) {
+      writeOpen = true;
+      paint();
+      const line = document.getElementById("line");
+      if (line) line.focus();
+      return;
+    }
+    buffer = "";
+    writeOpen = false;
+    return send({ type: "skill", action: id, text });
   }
   if (act === "mark") {
     const marked = !(view?.private.marks || []).includes(id);
@@ -549,6 +646,8 @@ app.addEventListener("submit", (event) => {
 document.getElementById("open-codex").addEventListener("click", () => {
   document.getElementById("codex").hidden = false;
 });
+document.getElementById("open-detail").addEventListener("click", openDetail);
+document.getElementById("close-detail").addEventListener("click", closeDetail);
 document.getElementById("close-codex").addEventListener("click", () => {
   document.getElementById("codex").hidden = true;
   document.getElementById("detail").hidden = true;

@@ -1,5 +1,5 @@
 import { RULES } from "../config/rules.js";
-import { AI_NICKNAMES, DRAFT_PHRASES, PHASE_TIPS, SILENCE_TEMPLATES, TALK_PHRASES } from "./phrases.js";
+import { AI_NICKNAMES, DRAFT_PHRASES, PHASE_TIPS, SILENCE_TEMPLATES, TALK_PHRASES, speakTalk } from "./phrases.js";
 import { FACTION_LABEL, PHASE_LABEL, ROLES, STANDARD_DEAL } from "./roles.js";
 import type {
   Faction,
@@ -684,9 +684,18 @@ export class GameEngine {
   private aiTalk(): void {
     if (!this.autoAi) return;
     for (const seat of this.sampleAi(3)) {
-      const phrase = TALK_PHRASES[(this.seatIndex(seat) + this.round) % TALK_PHRASES.length]!;
-      this.submitChat(seat.playerId, phrase);
+      this.submitChat(seat.playerId, this.aiTalkLine(seat));
     }
+  }
+
+  /** Same short verbs as the human chips. 疑／保 name one living seat. */
+  private aiTalkLine(seat: SeatState): string {
+    const phrase = TALK_PHRASES[(this.seatIndex(seat) + this.round) % TALK_PHRASES.length]!;
+    if (phrase !== "疑" && phrase !== "保") return phrase;
+    const others = this.seats.filter((item) => item.alive && item.id !== seat.id);
+    if (others.length === 0) return phrase;
+    const target = others[(this.seatIndex(seat) + this.round) % others.length]!;
+    return speakTalk(phrase, target.nickname);
   }
 
   private aiDraft(): void {
@@ -724,8 +733,7 @@ export class GameEngine {
   private catchUpAi(seat: SeatState): void {
     if (this.phase === "day_talk") {
       if (!this.isSealed(seat) && !(this.chatCount.get(seat.playerId) ?? 0)) {
-        const phrase = TALK_PHRASES[this.seatIndex(seat) % TALK_PHRASES.length]!;
-        this.submitChat(seat.playerId, phrase);
+        this.submitChat(seat.playerId, this.aiTalkLine(seat));
       }
       if (seat.roleId === "tip") this.submitPin(seat.playerId, "接管後釘低：我沿用原席觀察。");
       if (seat.roleId === "link") {

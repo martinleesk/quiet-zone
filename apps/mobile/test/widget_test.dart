@@ -201,7 +201,8 @@ void main() {
     await tester.pump();
     expect(find.byKey(const Key("scene-day_talk")), findsOneWidget);
     expect(find.byKey(const Key("role-bust:${ArtCatalog.cover}")), findsOneWidget);
-    expect(find.text("送出"), findsOneWidget);
+    expect(find.text("跟票"), findsOneWidget);
+    expect(find.text("自己寫"), findsOneWidget);
     expect(find.text("掩護 · 燈塔網"), findsOneWidget);
 
     await tester.pumpWidget(_app(_snapshot(
@@ -221,7 +222,8 @@ void main() {
     await tester.pumpWidget(_app(_snapshot(phase: "draft", phaseLabel: "私人草稿")));
     await tester.pump();
     expect(find.byKey(const Key("scene-draft")), findsOneWidget);
-    expect(find.text("私人草稿。留空都得。"), findsOneWidget);
+    expect(find.text("跳過"), findsOneWidget);
+    expect(find.text("而家做咩：寫（可跳）"), findsOneWidget);
 
     await tester.pumpWidget(_app(_snapshot(
       phase: "vote",
@@ -287,7 +289,7 @@ void main() {
     expect(find.text("燈亮討論"), findsOneWidget);
     expect(find.text("掩護 · 燈塔網"), findsOneWidget);
     expect(find.text("待核實｜真釘"), findsOneWidget);
-    expect(find.text("釘選殘訊"), findsOneWidget);
+    expect(find.text("釘一句"), findsOneWidget);
 
     await tester.pumpWidget(_app(_snapshot(
       phase: "day_talk",
@@ -305,7 +307,7 @@ void main() {
       skillActions: const [NightChoice(action: "mark", label: "標記消音嫌疑", needsTarget: true)],
       marks: const ["s2"],
     )));
-    expect(find.textContaining("私密標記"), findsOneWidget);
+    expect(find.text("標邊個"), findsOneWidget);
 
     await tester.pumpWidget(_app(_snapshot(phase: "vote", phaseLabel: "投票隔離", anonymousVote: true)));
     await tester.pump();
@@ -323,8 +325,8 @@ void main() {
       ],
     )));
     await tester.pump();
-    expect(find.text("臨時掩護"), findsOneWidget);
-    expect(find.text("發動"), findsOneWidget);
+    expect(find.text("保邊個"), findsOneWidget);
+    expect(find.text("而家做咩：發動"), findsOneWidget);
 
     await tester.pumpWidget(_app(_snapshot(
       phase: "ended",
@@ -368,7 +370,7 @@ void main() {
     expect(find.byKey(const Key("role-bust:${ArtCatalog.cover}")), findsOneWidget);
     expect(find.byKey(const Key("seat-bust:${ArtCatalog.cover}")), findsOneWidget);
     expect(find.byKey(const Key("seat-placeholder:s2")), findsOneWidget);
-    expect(find.text("送出"), findsOneWidget);
+    expect(find.text("跟票"), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(_app(_snapshot(
@@ -382,8 +384,8 @@ void main() {
     await tester.pump();
     expect(find.byKey(const Key("scene-night")), findsOneWidget);
     expect(find.byKey(const Key("seat-ring")), findsOneWidget);
-    expect(find.text("臨時掩護"), findsOneWidget);
-    expect(find.text("發動"), findsOneWidget);
+    expect(find.text("保邊個"), findsOneWidget);
+    expect(find.text("而家做咩：發動"), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(_app(_snapshot(
@@ -458,10 +460,14 @@ void main() {
     )));
     await tester.pumpAndSettle();
     _expectFullyVisible(tester, find.text("燈亮討論"));
+    _expectFullyVisible(tester, find.text("而家做咩：講／釘"));
     _expectFullyVisible(tester, find.text("測試橫額"));
-    _expectFullyVisible(tester, find.text(coverSkill));
-    _expectFullyVisible(tester, find.text("送出"));
+    expect(find.text(coverSkill), findsNothing);
+    _expectFullyVisible(tester, find.text("跟票"));
     _expectFullyVisible(tester, find.text("準備好"));
+    await tester.tap(find.byKey(const Key("open-detail")));
+    await tester.pumpAndSettle();
+    _expectFullyVisible(tester, find.text(coverSkill));
     expect(tester.takeException(), isNull);
 
     const warrantSkill = "暗中標消音。標中兩個又仍然在場就你獨贏。熄燈可以封一個人唔准講。";
