@@ -64,10 +64,27 @@ export interface PublicSnapshot {
   pins: PublicPin[];
   disconnects: number;
   disconnectsToWin: number;
-  winner: null | { faction: Faction; factionLabel: string; reason: string };
+  winner: null | {
+    faction: Faction;
+    factionLabel: string;
+    reason: string;
+    kind: "grey_marks" | "silence_disconnects" | "lighthouse_clear";
+  };
   hostSeatId: string | null;
   /** True once Boot has started. No more joins. */
   locked: boolean;
+  /** Whole seconds left in this phase. Null when the phase has no deadline. */
+  secondsLeft: number | null;
+  /** Seat identities. Null until the match has ended. */
+  reveal: null | Array<{
+    seatId: string;
+    nickname: string;
+    alive: boolean;
+    roleId: RoleId;
+    roleName: string;
+    faction: Faction;
+    factionLabel: string;
+  }>;
 }
 
 export interface PrivateRole {
@@ -115,6 +132,9 @@ export interface PrivateSnapshot {
   /** 消音組夜訊。其他陣營永遠係空陣列。 */
   silenceChannel: Array<{ seatId: string; nickname: string; text: string }>;
   tips: Array<{ id: string; text: string }>;
+  secondsLeft: number | null;
+  /** 回波師殘片，按時間順序。其他身分係空陣列。 */
+  remnants: Array<{ nickname: string; factionLabel: string; text: string }>;
 }
 
 export interface StepResult {
