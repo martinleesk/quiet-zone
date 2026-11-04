@@ -1,0 +1,20 @@
+name: quiet_zone
+description: Quiet Zone — Flutter client placeholder (run flutter create to materialize).
+publish_to: "none"
+version: 0.0.1+1
+
+environment:
+  sdk: ">=3.5.0 <4.0.0"
+
+# After `flutter create .`, replace this file with the generated one
+# or merge dependencies. This stub is intentionally minimal.
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
