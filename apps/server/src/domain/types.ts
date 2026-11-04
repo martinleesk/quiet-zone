@@ -75,7 +75,7 @@ export interface PrivateRole {
   skill: string;
 }
 
-export type SkillActionName = "pin" | "link" | "fake_flag" | "fake_plant";
+export type SkillActionName = "pin" | "link" | "fake_flag" | "fake_plant" | "mark";
 
 export interface SkillChoice {
   action: SkillActionName;
@@ -100,6 +100,12 @@ export interface PrivateSnapshot {
   /** 影內應仲有一次匿名票可以用。 */
   anonymousVote: boolean;
   fakeCharges: number;
+  /** True while this round's 封口 is in effect. Speech and day skills are off. */
+  muted: boolean;
+  /** One-round private card for the muted player. Null for everyone else. */
+  sealCard: string | null;
+  /** Secret that lets this human reclaim the seat after AI takeover. */
+  reclaimToken: string | null;
   votedSeatId: string | null;
   draft: string | null;
   marks: string[];
