@@ -59,10 +59,34 @@
     @keyframes pulse { 50% { opacity: .55; } }
     .phase { color: var(--muted); font-size: 12px; font-weight: 700; }
     .coach { color: var(--gold); font-size: 18px; font-weight: 800; line-height: 1.1; }
-    body[data-phase="day_talk"] .coach,
+    body[data-phase="day_talk"] .coach { font-size: 28px; }
+    body[data-phase="draft"] .bar-hero,
+    body[data-phase="vote"] .bar-hero,
+    body[data-phase="night"] .bar-hero { align-items: center; }
+    body[data-phase="draft"] .clock-wrap,
+    body[data-phase="vote"] .clock-wrap,
+    body[data-phase="night"] .clock-wrap { order: -1; min-width: 108px; }
+    body[data-phase="draft"] .clock,
+    body[data-phase="vote"] .clock,
+    body[data-phase="night"] .clock { font-size: 88px; }
     body[data-phase="draft"] .coach,
     body[data-phase="vote"] .coach,
-    body[data-phase="night"] .coach { font-size: 28px; }
+    body[data-phase="night"] .coach { font-size: 20px; }
+    body[data-phase="draft"] .phase,
+    body[data-phase="vote"] .phase,
+    body[data-phase="night"] .phase,
+    body[data-phase="draft"] .role-chip,
+    body[data-phase="vote"] .role-chip,
+    body[data-phase="night"] .role-chip { display: none; }
+    body[data-phase="draft"] .bar button,
+    body[data-phase="vote"] .bar button,
+    body[data-phase="night"] .bar button { color: var(--muted); font-size: 12px; }
+    body[data-phase="draft"] .scroll,
+    body[data-phase="vote"] .scroll,
+    body[data-phase="night"] .scroll { flex: 0 0 auto; max-height: 22%; }
+    body[data-phase="draft"] .dock,
+    body[data-phase="vote"] .dock,
+    body[data-phase="night"] .dock { max-height: none; flex: 1; }
     .verb-row { display: flex; flex-wrap: wrap; gap: 6px; }
     .verb-chip {
       border: 0;
@@ -209,9 +233,17 @@
       text-align: center;
       background: rgba(23,32,42,.55);
       padding: 3px 2px;
-      font-size: 10px;
+      font-size: 11px;
       line-height: 1.15;
     }
+    .seat-name {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+    .seal-mini { color: var(--danger); font-size: 10px; font-weight: 800; }
     .seat.me { border-color: var(--gold); background: rgba(36,48,68,.78); }
     .seat.dead { opacity: .55; }
     .seat img, .face {
@@ -327,10 +359,13 @@
       .dock { max-height: 62%; }
       .clock { font-size: 48px; }
       .coach,
-      body[data-phase="day_talk"] .coach,
+      body[data-phase="day_talk"] .coach { font-size: 22px; }
+      body[data-phase="draft"] .clock,
+      body[data-phase="vote"] .clock,
+      body[data-phase="night"] .clock { font-size: 64px; }
       body[data-phase="draft"] .coach,
       body[data-phase="vote"] .coach,
-      body[data-phase="night"] .coach { font-size: 22px; }
+      body[data-phase="night"] .coach { font-size: 16px; }
     }
   </style>
 </head>
