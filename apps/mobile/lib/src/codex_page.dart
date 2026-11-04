@@ -1,5 +1,6 @@
 import "package:flutter/material.dart";
 
+import "art.dart";
 import "role_catalog.dart";
 
 /// Public Standard Mode rulebook. Safe to open before a room or over a live table.
@@ -21,16 +22,12 @@ class RoleCodexPage extends StatelessWidget {
         children: [
           Text(
             "標準 Mode",
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(color: const Color(0xFFE7C27A)),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(color: const Color(0xFFE7C27A)),
           ),
           const SizedBox(height: 6),
           const Text("公開規則。開局前或者局中都可以睇。呢度只列角色同技能，唔會顯示你或者席上任何人嘅私人身分。"),
           const SizedBox(height: 6),
-          const Text(
-              "勝負次序：灰頻獨贏，然後消音組，然後燈塔網。11 席係燈塔網 7、消音組 3、灰頻 1。閒職會派兩席，圖鑑只列一次。"),
+          const Text("勝負次序：灰頻獨贏，然後消音組，然後燈塔網。11 席係燈塔網 7、消音組 3、灰頻 1。閒職會派兩席，圖鑑只列一次。"),
           const SizedBox(height: 20),
           for (final group in kCodexFactions) ...[
             _FactionHeader(group: group),
@@ -58,11 +55,7 @@ class _FactionHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(group.label,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(color: accent)),
+        Text(group.label, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: accent)),
         const SizedBox(height: 2),
         Text(group.blurb),
       ],
@@ -87,15 +80,14 @@ class _RoleCodexCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             RoleBust(roleId: role.id, accent: accent),
+            if (role.id == "civilian") RoleBust(roleId: role.id, accent: accent, asset: ArtCatalog.civilianM),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(role.name,
-                      style: Theme.of(context).textTheme.titleMedium),
+                  Text(role.name, style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 2),
-                  Text(factionLabelOf(role.faction),
-                      style: TextStyle(color: accent)),
+                  Text(factionLabelOf(role.faction), style: TextStyle(color: accent)),
                   const SizedBox(height: 6),
                   Text(role.skill),
                 ],
@@ -121,26 +113,29 @@ Color factionAccent(String faction) {
   }
 }
 
-/// Shows the art-pack bust when [roleBustAsset] has a path. Text-only until then.
+/// 3D bust for a codex card. Unknown ids stay a neutral block, not a faction circle.
 class RoleBust extends StatelessWidget {
-  const RoleBust({super.key, required this.roleId, required this.accent});
+  const RoleBust({super.key, required this.roleId, required this.accent, this.asset});
 
   final String roleId;
   final Color accent;
+  final String? asset;
 
   @override
   Widget build(BuildContext context) {
-    final asset = roleBustAsset(roleId);
-    if (asset == null) return const SizedBox.shrink();
+    final path = asset ?? roleBustAsset(roleId);
+    if (path == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: ClipRRect(
+        key: Key("codex-bust:$path"),
         borderRadius: BorderRadius.circular(8),
         child: Image.asset(
-          asset,
+          path,
           width: 72,
           height: 96,
           fit: BoxFit.cover,
+          alignment: ArtCatalog.bustAlignment(path),
           errorBuilder: (_, __, ___) => _placeholder(),
         ),
       ),

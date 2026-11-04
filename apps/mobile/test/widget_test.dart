@@ -1,7 +1,9 @@
 import "package:flutter/material.dart";
 import "package:flutter_test/flutter_test.dart";
 import "package:quiet_zone/main.dart";
+import "package:quiet_zone/src/art.dart";
 import "package:quiet_zone/src/game_controller.dart";
+import "package:quiet_zone/src/lobby_page.dart";
 import "package:quiet_zone/src/protocol.dart";
 import "package:quiet_zone/src/table_page.dart";
 
@@ -47,11 +49,184 @@ void main() {
     expect(snapshot.public.seats.every((seat) => seat.toString().contains("silencer")), isFalse);
   });
 
+  test("art catalog maps every standard role bust", () {
+    expect(ArtCatalog.installed, isTrue);
+    expect(ArtCatalog.roleBusts.keys.toSet(), {
+      "warrant",
+      "silencer",
+      "tip",
+      "cover",
+      "decoy",
+      "sweep",
+      "echo",
+      "link",
+      "plant",
+      "civilian",
+    });
+    expect(ArtCatalog.roleBusts["warrant"], ArtCatalog.warrant);
+    expect(ArtCatalog.roleBusts["silencer"], ArtCatalog.silencer);
+    expect(ArtCatalog.roleBusts["tip"], ArtCatalog.tip);
+    expect(ArtCatalog.roleBusts["cover"], ArtCatalog.cover);
+    expect(ArtCatalog.roleBusts["decoy"], ArtCatalog.decoy);
+    expect(ArtCatalog.roleBusts["sweep"], ArtCatalog.sweep);
+    expect(ArtCatalog.roleBusts["echo"], ArtCatalog.echo);
+    expect(ArtCatalog.roleBusts["link"], ArtCatalog.link);
+    expect(ArtCatalog.roleBusts["plant"], ArtCatalog.plant);
+    expect(ArtCatalog.roleBusts["civilian"], ArtCatalog.civilianF);
+    expect(ArtCatalog.bustFor("warrant"), ArtCatalog.warrant);
+    expect(ArtCatalog.bustFor("silencer"), ArtCatalog.silencer);
+    expect(ArtCatalog.bustFor("cover"), ArtCatalog.cover);
+    expect(ArtCatalog.bustFor("civilian"), ArtCatalog.civilianF);
+    expect(ArtCatalog.bustFor("civilian", seatId: "s1"), ArtCatalog.civilianF);
+    expect(ArtCatalog.bustFor("civilian", seatId: "s2"), ArtCatalog.civilianM);
+    expect(ArtCatalog.bustFor("nope"), isNull);
+    expect(ArtCatalog.reservedScene("home"), ArtCatalog.dayTalk);
+    expect(ArtCatalog.reservedScene("lobby"), ArtCatalog.dayTalk);
+    expect(ArtCatalog.reservedScene("day_talk"), ArtCatalog.dayTalk);
+    expect(ArtCatalog.reservedScene("draft"), ArtCatalog.dayTalk);
+    expect(ArtCatalog.reservedScene("night"), ArtCatalog.night);
+    expect(ArtCatalog.reservedScene("vote"), isNull);
+    expect(ArtCatalog.reservedScene("boot"), isNull);
+    expect(ArtCatalog.sceneFor("day_talk"), ArtCatalog.dayTalk);
+    expect(ArtCatalog.sceneFor("draft"), ArtCatalog.dayTalk);
+    expect(ArtCatalog.sceneFor("night"), ArtCatalog.night);
+    expect(ArtCatalog.sceneFor("vote"), isNull);
+    expect(ArtCatalog.showsBackdrop("day_talk"), isTrue);
+    expect(ArtCatalog.showsBackdrop("draft"), isTrue);
+    expect(ArtCatalog.showsBackdrop("night"), isTrue);
+    expect(ArtCatalog.showsBackdrop("home"), isTrue);
+    expect(ArtCatalog.showsBackdrop("vote"), isFalse);
+    expect(ArtCatalog.showsBackdrop("boot"), isFalse);
+    expect(ArtCatalog.showsBackdrop("ended"), isFalse);
+    expect(ArtCatalog.factionColor("lighthouse"), ArtCatalog.lighthouse);
+    expect(ArtCatalog.factionColor("silence"), ArtCatalog.silence);
+    expect(ArtCatalog.factionColor("grey"), ArtCatalog.grey);
+    expect(ArtCatalog.reservedFiles, contains(ArtCatalog.styleBoard));
+    expect(ArtCatalog.reservedFiles, contains(ArtCatalog.civilianM));
+  });
+
   testWidgets("home offers a private room", (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(const QuietZoneApp());
     expect(find.text("消音區"), findsOneWidget);
     expect(find.text("開私人房"), findsOneWidget);
     expect(find.text("用代碼加入"), findsOneWidget);
+    expect(find.byKey(const Key("scene-home")), findsOneWidget);
+  });
+
+  testWidgets("lobby keeps the room code on the day header", (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: LobbyPage(controller: GameController(preview: _snapshot(phase: "lobby", phaseLabel: "組席"))),
+    ));
+    expect(find.byKey(const Key("scene-lobby")), findsOneWidget);
+    expect(find.text("ABCD"), findsOneWidget);
+    expect(find.text("準備好"), findsOneWidget);
+    expect(find.text("開始封鎖（AI 補滿 11 席）"), findsOneWidget);
+  });
+
+  testWidgets("role reveal shows the 3D bust and keeps an unknown role on the faction circle", (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "boot",
+      phaseLabel: "開局抽身分",
+      role: const PrivateRole(
+        id: "warrant",
+        name: "孤證客",
+        faction: "grey",
+        factionLabel: "灰頻",
+        skill: "私密標記消音組。",
+      ),
+    )));
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.warrant}")), findsOneWidget);
+    expect(find.byKey(const Key("role-placeholder")), findsNothing);
+    expect(find.text("孤證客 · 灰頻"), findsOneWidget);
+    expect(find.text("我睇完身分"), findsOneWidget);
+    expect(find.byKey(const Key("scene-boot")), findsNothing);
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "night",
+      phaseLabel: "熄燈行動",
+      role: const PrivateRole(
+        id: "silencer",
+        name: "消音手",
+        faction: "silence",
+        factionLabel: "消音組",
+        skill: "執行失聯。",
+      ),
+    )));
+    await tester.pump();
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.silencer}")), findsOneWidget);
+    expect(find.byKey(const Key("scene-night")), findsOneWidget);
+
+    await tester.pumpWidget(_app(_snapshot(phase: "day_talk", phaseLabel: "燈亮討論")));
+    await tester.pump();
+    expect(find.byKey(const Key("scene-day_talk")), findsOneWidget);
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.cover}")), findsOneWidget);
+    expect(find.text("送出"), findsOneWidget);
+    expect(find.text("掩護員 · 燈塔網"), findsOneWidget);
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "day_talk",
+      phaseLabel: "燈亮討論",
+      role: const PrivateRole(
+        id: "civilian",
+        name: "燈塔閒職",
+        faction: "lighthouse",
+        factionLabel: "燈塔網",
+        skill: "無主動技能。",
+      ),
+    )));
+    await tester.pump();
+    expect(find.byKey(const Key("role-bust:${ArtCatalog.civilianF}")), findsOneWidget);
+
+    await tester.pumpWidget(_app(_snapshot(phase: "draft", phaseLabel: "私人草稿")));
+    await tester.pump();
+    expect(find.byKey(const Key("scene-draft")), findsOneWidget);
+    expect(find.text("私人草稿。留空都得。"), findsOneWidget);
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "vote",
+      phaseLabel: "投票隔離",
+      role: const PrivateRole(
+        id: "ghost",
+        name: "路人",
+        faction: "lighthouse",
+        factionLabel: "燈塔網",
+        skill: "未有圖。",
+      ),
+    )));
+    await tester.pump();
+    expect(find.byKey(const Key("scene-vote")), findsNothing);
+    expect(find.text("確認投票"), findsOneWidget);
+    expect(find.byKey(const Key("role-placeholder")), findsOneWidget);
+    expect(find.text("路"), findsOneWidget);
+    _expectFaction(tester, ArtCatalog.lighthouse);
+  });
+
+  testWidgets("seat chips show a bust only for the viewer's own role or a public reveal", (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_app(_snapshot(phase: "day_talk", phaseLabel: "燈亮討論")));
+    expect(find.byKey(const Key("seat-bust:${ArtCatalog.cover}")), findsOneWidget);
+    expect(find.byKey(const Key("seat-placeholder:s2")), findsOneWidget);
+    expect(find.byKey(const Key("seat-bust:${ArtCatalog.silencer}")), findsNothing);
+    expect(find.text("消音手"), findsNothing);
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "ended",
+      phaseLabel: "終局",
+      reveal: const [
+        SeatReveal(seatId: "s2", nickname: "霧港燈", alive: true, roleName: "消音手", factionLabel: "消音組"),
+      ],
+    )));
+    await tester.pump();
+    expect(find.byKey(const Key("seat-bust:${ArtCatalog.cover}")), findsOneWidget);
+    expect(find.byKey(const Key("seat-bust:${ArtCatalog.silencer}")), findsOneWidget);
+    expect(find.byKey(const Key("seat-placeholder:s2")), findsNothing);
   });
 
   testWidgets("table shows the AI badge, vote, night action, and ending", (tester) async {
@@ -127,6 +302,12 @@ void main() {
   });
 }
 
+void _expectFaction(WidgetTester tester, Color color) {
+  final box = tester.widget<Container>(find.byKey(const Key("role-placeholder")));
+  final decoration = box.decoration! as BoxDecoration;
+  expect((decoration.border! as Border).top.color, color);
+}
+
 Widget _app(GameSnapshot snapshot) {
   return MaterialApp(
     home: TablePage(controller: GameController(preview: snapshot)),
@@ -147,6 +328,7 @@ GameSnapshot _snapshot({
   int? secondsLeft,
   List<EchoRemnant> remnants = const [],
   List<SeatReveal> reveal = const [],
+  PrivateRole? role,
 }) {
   return GameSnapshot(
     public: PublicView(
@@ -177,13 +359,14 @@ GameSnapshot _snapshot({
       canSpeak: true,
       canVote: phase == "vote",
       ready: false,
-      role: const PrivateRole(
-        id: "cover",
-        name: "掩護員",
-        faction: "lighthouse",
-        factionLabel: "燈塔網",
-        skill: "臨時掩護：免疫該夜失聯。",
-      ),
+      role: role ??
+          const PrivateRole(
+            id: "cover",
+            name: "掩護員",
+            faction: "lighthouse",
+            factionLabel: "燈塔網",
+            skill: "臨時掩護：免疫該夜失聯。",
+          ),
       teammates: const [],
       inbox: const [],
       nightActions: nightActions,

@@ -1,9 +1,11 @@
 import "package:flutter/material.dart";
 
 import "ai_badge.dart";
+import "art.dart";
 import "codex_page.dart";
 import "game_controller.dart";
 import "protocol.dart";
+import "role_catalog.dart";
 
 const silenceTemplates = <String>[
   "今夜我建議失聯一個燈塔席。",
@@ -66,106 +68,134 @@ class _TablePageState extends State<TablePage> {
           TextButton(onPressed: widget.controller.leave, child: const Text("離開")),
         ],
       ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              children: [
-                ..._tips(mine),
-                Text(public.banner),
-                const SizedBox(height: 8),
-                Text(
-                  "第 ${public.round} 輪 · 第 ${public.night} 夜 · 失聯 ${public.disconnects}／${public.disconnectsToWin}",
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  "公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}",
-                ),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 0), visualDensity: VisualDensity.compact),
-                    onPressed: () => openRoleCodex(context),
-                    child: const Text("角色圖鑑"),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                if (public.winner != null) _WinnerCard(winner: public.winner!, reveal: public.reveal),
-                if (mine.remnants.isNotEmpty) ...[
+      body: _phaseFrame(
+        public.phase,
+        Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                children: [
+                  ..._tips(mine),
+                  Text(public.banner),
                   const SizedBox(height: 8),
-                  Text("回波殘片", style: Theme.of(context).textTheme.titleSmall),
-                  for (final remnant in mine.remnants)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text("${remnant.nickname} · ${remnant.factionLabel}"),
-                    ),
-                ],
-                if (mine.sealCard != null)
-                  Card(
-                    color: const Color(0xFF3A2A32),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Text(mine.sealCard!),
+                  Text(
+                    "第 ${public.round} 輪 · 第 ${public.night} 夜 · 失聯 ${public.disconnects}／${public.disconnectsToWin}",
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}",
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton(
+                      style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 0), visualDensity: VisualDensity.compact),
+                      onPressed: () => openRoleCodex(context),
+                      child: const Text("角色圖鑑"),
                     ),
                   ),
-                if (mine.role != null) _RoleCard(mine: mine),
-                if (public.pins.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text("釘選時間線", style: Theme.of(context).textTheme.titleSmall),
-                  for (final pin in public.pins)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: Text(pin.unverified ? "待核實｜${pin.text}" : pin.text),
-                    ),
-                ],
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final seat in public.seats) _SeatChip(seat: seat, mine: mine.seatId == seat.id),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Text("公開頻道", style: Theme.of(context).textTheme.titleSmall),
-                const SizedBox(height: 6),
-                for (final line in public.log) Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(line),
-                ),
-                if (mine.inbox.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Text("私人匣", style: Theme.of(context).textTheme.titleSmall),
+                  if (public.winner != null) _WinnerCard(winner: public.winner!, reveal: public.reveal),
+                  if (mine.remnants.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text("回波殘片", style: Theme.of(context).textTheme.titleSmall),
+                    for (final remnant in mine.remnants)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text("${remnant.nickname} · ${remnant.factionLabel}"),
+                      ),
+                  ],
+                  if (mine.sealCard != null)
+                    Card(
+                      color: const Color(0xFF3A2A32),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Text(mine.sealCard!),
+                      ),
+                    ),
+                  if (mine.role != null) _RoleCard(mine: mine),
+                  if (public.pins.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text("釘選時間線", style: Theme.of(context).textTheme.titleSmall),
+                    for (final pin in public.pins)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(pin.unverified ? "待核實｜${pin.text}" : pin.text),
+                      ),
+                  ],
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final seat in public.seats)
+                        _SeatChip(
+                          seat: seat,
+                          mine: mine.seatId == seat.id,
+                          roleId: _knownRoleId(public, mine, seat),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text("公開頻道", style: Theme.of(context).textTheme.titleSmall),
                   const SizedBox(height: 6),
-                  for (final line in mine.inbox)
+                  for (final line in public.log)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text(line),
                     ),
+                  if (mine.inbox.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Text("私人匣", style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: 6),
+                    for (final line in mine.inbox)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Text(line),
+                      ),
+                  ],
+                  if (widget.controller.error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(widget.controller.error!, style: const TextStyle(color: Color(0xFFE07A7A))),
+                    ),
                 ],
-                if (widget.controller.error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(widget.controller.error!, style: const TextStyle(color: Color(0xFFE07A7A))),
-                  ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          SafeArea(
-            top: false,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 280),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                child: _actions(public, mine),
               ),
             ),
-          ),
-        ],
+            const Divider(height: 1),
+            ColoredBox(
+              color: const Color(0xFF0E141B),
+              child: SafeArea(
+                top: false,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 280),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+                    child: _actions(public, mine),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  /// Own role, or a seat named in the public end-game reveal. Never a hidden seat.
+  String? _knownRoleId(PublicView public, PrivateView mine, PublicSeat seat) {
+    if (mine.seatId == seat.id) return mine.role?.id;
+    for (final revealed in public.reveal) {
+      if (revealed.seatId == seat.id) return roleIdForName(revealed.roleName);
+    }
+    return null;
+  }
+
+  Widget _phaseFrame(String phase, Widget child) {
+    if (!ArtCatalog.showsBackdrop(phase)) {
+      return child;
+    }
+    return SceneBackdrop.fill(phase: phase, child: child);
   }
 
   List<Widget> _silenceChannel(PublicView public, PrivateView mine) {
@@ -335,8 +365,7 @@ class _TablePageState extends State<TablePage> {
             Wrap(
               spacing: 6,
               children: [
-                for (final phrase in talkTemplates)
-                  ActionChip(label: Text(phrase), onPressed: () => _text.text = phrase),
+                for (final phrase in talkTemplates) ActionChip(label: Text(phrase), onPressed: () => _text.text = phrase),
               ],
             ),
             const SizedBox(height: 8),
@@ -385,9 +414,7 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(mine.muted
-                ? "你被封口，而家只可以投票。"
-                : "投一個仍在場嘅人，或者棄權。平票就流局，唔會隔離。結算先公開票簿。"),
+            Text(mine.muted ? "你被封口，而家只可以投票。" : "投一個仍在場嘅人，或者棄權。平票就流局，唔會隔離。結算先公開票簿。"),
             if (mine.anonymousVote) ...[
               const SizedBox(height: 8),
               FilterChip(
@@ -532,23 +559,32 @@ class _RoleCard extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
-        child: Column(
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("你嘅身分", style: Theme.of(context).textTheme.labelLarge),
-            Text("${role.name} · ${role.factionLabel}", style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            Text(role.skill),
-            if (mine.teammates.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text("組員：${mine.teammates.map((mate) => "${mate.nickname}（${mate.roleName}）").join("、")}"),
+            RolePortrait(role: role, seatId: mine.seatId),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("你嘅身分", style: Theme.of(context).textTheme.labelLarge),
+                  Text("${role.name} · ${role.factionLabel}", style: Theme.of(context).textTheme.titleLarge),
+                  const SizedBox(height: 4),
+                  Text(role.skill),
+                  if (mine.teammates.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text("組員：${mine.teammates.map((mate) => "${mate.nickname}（${mate.roleName}）").join("、")}"),
+                    ),
+                  if (mine.marks.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text("你嘅標記：${mine.marks.join("、")}"),
+                    ),
+                ],
               ),
-            if (mine.marks.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text("你嘅標記：${mine.marks.join("、")}"),
-              ),
+            ),
           ],
         ),
       ),
@@ -557,15 +593,17 @@ class _RoleCard extends StatelessWidget {
 }
 
 class _SeatChip extends StatelessWidget {
-  const _SeatChip({required this.seat, required this.mine});
+  const _SeatChip({required this.seat, required this.mine, required this.roleId});
 
   final PublicSeat seat;
   final bool mine;
+  final String? roleId;
 
   @override
   Widget build(BuildContext context) {
+    final asset = roleId == null ? null : ArtCatalog.bustFor(roleId!, seatId: seat.id);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.fromLTRB(6, 6, 10, 6),
       decoration: BoxDecoration(
         color: mine ? const Color(0xFF243044) : const Color(0xFF17202A),
         borderRadius: BorderRadius.circular(12),
@@ -574,12 +612,58 @@ class _SeatChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          _SeatFace(seatId: seat.id, asset: asset),
+          const SizedBox(width: 8),
           Text("${seat.id} ${seat.nickname}${seat.alive ? "" : " · 離場"}${seat.sealed ? " · 封口" : ""}"),
           if (seat.isAi) ...[
             const SizedBox(width: 6),
             const AiBadge(),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _SeatFace extends StatelessWidget {
+  const _SeatFace({required this.seatId, required this.asset});
+
+  final String seatId;
+  final String? asset;
+
+  @override
+  Widget build(BuildContext context) {
+    if (asset == null) {
+      return Container(
+        key: Key("seat-placeholder:$seatId"),
+        width: 28,
+        height: 28,
+        decoration: const BoxDecoration(
+          shape: BoxShape.circle,
+          color: Color(0xFF243044),
+          border: Border.fromBorderSide(BorderSide(color: Color(0xFF8AA0B4))),
+        ),
+      );
+    }
+    return ClipRRect(
+      key: Key("seat-bust:$asset"),
+      borderRadius: BorderRadius.circular(8),
+      child: Image(
+        image: AssetImage(asset!),
+        width: 28,
+        height: 36,
+        fit: BoxFit.cover,
+        alignment: ArtCatalog.bustAlignment(asset!),
+        errorBuilder: (_, __, ___) => Container(
+          key: Key("seat-placeholder:$seatId"),
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+            shape: BoxShape.circle,
+            color: Color(0xFF243044),
+            border: Border.fromBorderSide(BorderSide(color: Color(0xFF8AA0B4))),
+          ),
+        ),
       ),
     );
   }

@@ -1,11 +1,12 @@
+import "art.dart";
+
 // Client mirror of Standard Mode roles.
 // Source of truth: apps/server/src/domain/roles.ts (ROLES, FACTION_LABEL).
 // Keep every skill string identical to that file. Public rules only:
 // never a seat's private role, marks, inbox, or remnants.
 //
-// Bust art is optional. When the art pack lands, put the file in
-// apps/mobile/assets/roles/, list it under flutter/assets in pubspec.yaml,
-// and add "<roleId>": "assets/roles/<roleId>.png" to kRoleBustAssets.
+// Bust paths live in ArtCatalog. Civilian's map entry is the woman;
+// the man is ArtCatalog.civilianM and is chosen per seat, not in this codex list.
 
 class CodexRole {
   const CodexRole({
@@ -37,10 +38,17 @@ class CodexFactionGroup {
   final List<CodexRole> roles;
 }
 
-/// Known bust assets. Empty until the art pack is registered.
-const Map<String, String> kRoleBustAssets = <String, String>{};
+/// RoleId → default 3D bust. Same map the table uses.
+const Map<String, String> kRoleBustAssets = ArtCatalog.roleBusts;
 
 String? roleBustAsset(String roleId) => kRoleBustAssets[roleId];
+
+String? roleIdForName(String name) {
+  for (final role in kStandardRoles) {
+    if (role.name == name) return role.id;
+  }
+  return null;
+}
 
 String factionLabelOf(String faction) {
   for (final group in kCodexFactions) {
