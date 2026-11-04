@@ -14,6 +14,24 @@ void main() {
   runApp(const QuietZoneApp());
 }
 
+ThemeData quietZoneTheme() {
+  return ThemeData(
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    colorScheme: const ColorScheme.dark(
+      surface: Color(0xFF17202A),
+      primary: Color(0xFFE7C27A),
+      secondary: Color(0xFF7EB6FF),
+      error: Color(0xFFE07A7A),
+    ),
+    scaffoldBackgroundColor: const Color(0xFF0E141B),
+    inputDecorationTheme: const InputDecorationTheme(
+      border: OutlineInputBorder(),
+      isDense: true,
+    ),
+  );
+}
+
 /// Phones and tablets lock to landscape. Desktop follows the same preference.
 /// Installed web apps also read `orientation` in web/manifest.json.
 Future<void> lockQuietZoneLandscape() {
@@ -52,21 +70,7 @@ class _QuietZoneAppState extends State<QuietZoneApp> {
     return MaterialApp(
       title: "消音區",
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: const ColorScheme.dark(
-          surface: Color(0xFF17202A),
-          primary: Color(0xFFE7C27A),
-          secondary: Color(0xFF7EB6FF),
-          error: Color(0xFFE07A7A),
-        ),
-        scaffoldBackgroundColor: const Color(0xFF0E141B),
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(),
-          isDense: true,
-        ),
-      ),
+      theme: quietZoneTheme(),
       home: ListenableBuilder(
         listenable: _controller,
         builder: (context, _) {

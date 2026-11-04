@@ -405,8 +405,125 @@ void main() {
     await tester.pump();
     expect(find.byKey(const Key("seat-ring")), findsOneWidget);
     expect(find.text("s11 沙田"), findsOneWidget);
+    final seatLabel = tester.widget<Text>(find.text("s11 沙田"));
+    expect(seatLabel.maxLines, isNull);
+    expect(seatLabel.overflow, anyOf(isNull, TextOverflow.clip, TextOverflow.visible));
     expect(find.text("AI"), findsWidgets);
+    expect(find.text("離場"), findsWidgets);
+    expect(find.text("封口"), findsWidgets);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets("phone landscape keeps critical copy fully on screen", (tester) async {
+    await _usePhoneLandscape(tester);
+    await tester.pumpWidget(const QuietZoneApp());
+    expect(find.byKey(const Key("landscape-home")), findsOneWidget);
+    _expectFullyVisible(tester, find.text("消音區"));
+    _expectFullyVisible(tester, find.text("私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"));
+    _expectFullyVisible(tester, find.text("開私人房"));
+    _expectFullyVisible(tester, find.text("用代碼加入"));
+    _expectFullyVisible(tester, find.text("角色圖鑑"));
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text("角色圖鑑"));
+    await tester.pumpAndSettle();
+    _expectFullyVisible(
+      tester,
+      find.text("勝負次序：灰頻獨贏，然後消音組，然後燈塔網。11 席係燈塔網 7、消音組 3、灰頻 1。閒職會派兩席，圖鑑只列一次。"),
+    );
+    for (final name in const ["線報員", "掃頻員", "掩護員", "回波師", "通聯官", "燈塔閒職", "消音手", "假訊員", "影內應", "孤證客"]) {
+      _expectFullyVisible(tester, find.text(name));
+    }
+    expect(find.text("釘選殘訊：每個燈亮可釘一條公開資訊上時間線，唔佔發言格。"), findsNothing);
+
+    await tester.tap(find.byKey(const Key("codex-role:warrant")));
+    await tester.pumpAndSettle();
+    _expectFullyVisible(tester, find.text("私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。"));
+    _expectFullyVisible(tester, find.text("孤證客仍在場，正確標記消音組達 2 即獨贏。"));
+    _expectFullyVisible(tester, find.text("點贏"));
+    expect(tester.takeException(), isNull);
+
+    const coverSkill = "臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。";
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "day_talk",
+      phaseLabel: "燈亮討論",
+      role: const PrivateRole(
+        id: "cover",
+        name: "掩護員",
+        faction: "lighthouse",
+        factionLabel: "燈塔網",
+        skill: coverSkill,
+      ),
+    )));
+    await tester.pumpAndSettle();
+    _expectFullyVisible(tester, find.text("燈亮討論"));
+    _expectFullyVisible(tester, find.text("測試橫額"));
+    _expectFullyVisible(tester, find.text(coverSkill));
+    _expectFullyVisible(tester, find.text("送出"));
+    _expectFullyVisible(tester, find.text("準備好"));
+    expect(tester.takeException(), isNull);
+
+    const warrantSkill = "私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。";
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "boot",
+      phaseLabel: "開局抽身分",
+      role: const PrivateRole(
+        id: "warrant",
+        name: "孤證客",
+        faction: "grey",
+        factionLabel: "灰頻",
+        skill: warrantSkill,
+      ),
+    )));
+    await tester.pumpAndSettle();
+    _expectFullyVisible(tester, find.text("開局抽身分"));
+    _expectFullyVisible(tester, find.text(warrantSkill));
+    _expectFullyVisible(tester, find.text("我睇完身分"));
+    expect(tester.takeException(), isNull);
+  });
+}
+
+Future<void> _usePhoneLandscape(WidgetTester tester) async {
+  await tester.binding.setSurfaceSize(const Size(844, 390));
+  final pixelRatio = tester.view.devicePixelRatio;
+  tester.view.viewPadding = FakeViewPadding(left: 47 * pixelRatio, top: 0, right: 0, bottom: 21 * pixelRatio);
+  tester.view.padding = FakeViewPadding(left: 47 * pixelRatio, top: 0, right: 0, bottom: 21 * pixelRatio);
+  addTearDown(() async {
+    tester.view.resetViewPadding();
+    tester.view.resetPadding();
+    await tester.binding.setSurfaceSize(null);
+  });
+}
+
+/// The string is inside the window, clear of the safe insets, and no ancestor cuts it.
+void _expectFullyVisible(WidgetTester tester, Finder finder) {
+  expect(finder, findsOneWidget);
+  final rect = tester.getRect(finder);
+  final pixelRatio = tester.view.devicePixelRatio;
+  final padding = tester.view.padding;
+  final inset = EdgeInsets.fromLTRB(
+    padding.left / pixelRatio,
+    padding.top / pixelRatio,
+    padding.right / pixelRatio,
+    padding.bottom / pixelRatio,
+  );
+  final screen = inset.deflateRect(Offset.zero & tester.binding.renderViews.single.size);
+  expect(rect.width, greaterThan(0));
+  expect(rect.height, greaterThan(0));
+  expect(
+    screen.inflate(1).contains(rect.topLeft) && screen.inflate(1).contains(rect.bottomRight),
+    isTrue,
+    reason: "$finder rect $rect outside $screen",
+  );
+  final element = tester.element(finder);
+  element.visitAncestorElements((ancestor) {
+    final render = ancestor.renderObject;
+    if (render is RenderBox && render.hasSize) {
+      final bounds = MatrixUtils.transformRect(render.getTransformTo(null), Offset.zero & render.size);
+      final inside = bounds.inflate(1.5).contains(rect.topLeft) && bounds.inflate(1.5).contains(rect.bottomRight);
+      expect(inside, isTrue, reason: "$finder rect $rect clipped by ${ancestor.widget.runtimeType} at $bounds");
+    }
+    return true;
   });
 }
 
