@@ -6,6 +6,7 @@
 npm install
 npm test
 npm run demo    # 一局 GM 腳本
+npm run sim -- --games 10   # 無頭 AI 對 AI，寫 docs/trial/logs/latest.jsonl
 npm run dev     # http://127.0.0.1:8787/health  同  ws://127.0.0.1:8787/ws
 ```
 
