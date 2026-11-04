@@ -37,6 +37,7 @@ interface SeatState {
   linkedThisRound: boolean;
   fakeCharges: number;
   anonymousVoteUsed: boolean;
+  reclaimToken: string | null;
 }
 
 interface Ballot {
@@ -99,6 +100,7 @@ export class GameEngine {
   private chatCount = new Map<string, number>();
   private pins: PublicPin[] = [];
   private pinSeq = 0;
+  private tokenSeq = 0;
 
   constructor(opts: EngineOptions = {}) {
     this.rng = opts.rng ?? Math.random;
@@ -127,6 +129,7 @@ export class GameEngine {
     const name = cleanName(nickname);
     if (!name) return fail("nickname", "請填一個暱稱。");
     const seat = this.makeSeat(playerId, name, false);
+    seat.reclaimToken = this.nextToken();
     this.seats.push(seat);
     return { ok: true, seatId: seat.id };
   }
@@ -298,6 +301,49 @@ export class GameEngine {
     if (index >= 0) this.seats.splice(index, 1);
   }
 
+  /** Mark or clear one private silence suspect. Does not reveal whether it is correct. */
+  submitSuspect(playerId: string, targetSeatId: string, marked: boolean): Step {
+    const seat = this.requireLiving(playerId);
+    if (!seat.ok) return seat;
+    if (seat.seat.roleId !== "warrant") return fail("not_your_skill", "只有孤證客可以標記。");
+    if (this.phase !== "day_talk" && this.phase !== "draft" && this.phase !== "night") {
+      return fail("wrong_phase", "標記可以喺燈亮、草稿或者熄燈改。");
+    }
+    if (this.isSealed(seat.seat) && this.phase !== "night") return fail("sealed", "你被封口，呢回合只可以投票。");
+    const target = this.seatById(targetSeatId);
+    if (!target || !target.alive) return fail("illegal_target", "目標要仍然在場。");
+    if (target.id === seat.seat.id) return fail("illegal_target", "唔可以標記自己。");
+    const has = seat.seat.silenceMarks.includes(target.id);
+    if (marked && !has) {
+      seat.seat.silenceMarks.push(target.id);
+      this.markSkill(seat.seat);
+      seat.seat.inbox.push(`已標記 ${target.nickname}。標記只得你知。`);
+    } else if (!marked && has) {
+      seat.seat.silenceMarks = seat.seat.silenceMarks.filter((id) => id !== target.id);
+      this.markSkill(seat.seat);
+      seat.seat.inbox.push(`已取消標記 ${target.nickname}。`);
+    }
+    return ok();
+  }
+
+  /**
+   * Original human returns. Only the token issued for that seat works.
+   * Lobby drops delete the seat, so there is nothing to reclaim.
+   */
+  reclaim(newPlayerId: string, token: string): Step {
+    if (!token) return fail("token_unknown", "搵唔到你原本嘅席。");
+    const seat = this.seats.find((item) => item.reclaimToken === token);
+    if (!seat) return fail("token_unknown", "搵唔到你原本嘅席。");
+    if (!seat.isAi) return fail("not_taken", "呢席未交俾 AI。");
+    if (this.seats.some((item) => item.playerId === newPlayerId)) return fail("already_in_room", "你已經喺一間房。");
+    const oldId = seat.playerId;
+    this.rekey(oldId, newPlayerId);
+    seat.isAi = false;
+    seat.ready = false;
+    this.pushLog(`${seat.nickname} 重新入座，AI 交還控制。`);
+    return ok();
+  }
+
   submitNight(playerId: string, command: NightCommand): Step {
     const seat = this.requireLiving(playerId);
     if (!seat.ok) return seat;
@@ -446,6 +492,11 @@ export class GameEngine {
       skillActions: seat ? this.skillActionsFor(seat) : [],
       anonymousVote: seat != null && seat.alive && seat.roleId === "plant" && !seat.anonymousVoteUsed && this.phase === "vote",
       fakeCharges: seat?.fakeCharges ?? 0,
+      muted: seat != null && this.isSealed(seat),
+      sealCard: seat != null && this.isSealed(seat)
+        ? "封口卡：你呢回合只可以投票。唔可以發言、交草稿，或者用白天技能。"
+        : null,
+      reclaimToken: seat?.reclaimToken ?? null,
       votedSeatId: seat ? (this.votes.get(playerId)?.target ?? null) : null,
       draft: seat ? (this.drafts.get(playerId) ?? null) : null,
       marks: seat ? [...seat.silenceMarks] : [],
@@ -473,7 +524,32 @@ export class GameEngine {
       linkedThisRound: false,
       fakeCharges: 0,
       anonymousVoteUsed: false,
+      reclaimToken: null,
     };
+  }
+
+  private nextToken(): string {
+    this.tokenSeq += 1;
+    const mix = Math.floor(this.rng() * 0x100000000)
+      .toString(16)
+      .padStart(8, "0");
+    return `qz${this.tokenSeq.toString(16)}${mix}`;
+  }
+
+  private rekey(oldId: string, newId: string): void {
+    const seat = this.seats.find((item) => item.playerId === oldId);
+    if (!seat) return;
+    seat.playerId = newId;
+    this.moveKey(this.votes, oldId, newId);
+    this.moveKey(this.drafts, oldId, newId);
+    this.moveKey(this.nightActions, oldId, newId);
+    this.moveKey(this.chatCount, oldId, newId);
+  }
+
+  private moveKey<T>(map: Map<string, T>, oldId: string, newId: string): void {
+    if (!map.has(oldId)) return;
+    map.set(newId, map.get(oldId) as T);
+    map.delete(oldId);
   }
 
   private assertDeal(roles: RoleId[]): void {
@@ -849,8 +925,13 @@ export class GameEngine {
 
   private skillActionsFor(seat: SeatState): SkillChoice[] {
     if (!seat.alive || !seat.roleId) return [];
-    if (this.phase === "day_talk" && this.isSealed(seat)) return [];
+    const dayMute = this.isSealed(seat) && this.phase !== "night";
+    if (dayMute) return [];
     const actions: SkillChoice[] = [];
+    const markWindow = this.phase === "day_talk" || this.phase === "draft" || this.phase === "night";
+    if (markWindow && seat.roleId === "warrant") {
+      actions.push({ action: "mark", label: "標記消音嫌疑", needsTarget: true, needsText: false });
+    }
     if (this.phase === "day_talk" && seat.roleId === "tip" && !seat.pinnedThisRound) {
       actions.push({ action: "pin", label: "釘選殘訊", needsTarget: false, needsText: true });
     }

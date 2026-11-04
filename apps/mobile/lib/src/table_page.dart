@@ -62,6 +62,14 @@ class _TablePageState extends State<TablePage> {
                 ),
                 const SizedBox(height: 12),
                 if (public.winner != null) _WinnerCard(winner: public.winner!),
+                if (mine.sealCard != null)
+                  Card(
+                    color: const Color(0xFF3A2A32),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Text(mine.sealCard!),
+                    ),
+                  ),
                 if (mine.role != null) _RoleCard(mine: mine),
                 if (public.pins.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -146,6 +154,28 @@ class _TablePageState extends State<TablePage> {
               child: const Text("核對通聯"),
             ),
           )
+        else if (action.action == "mark")
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text("私密標記。撳一下標記，再撳取消。唔會話你知係咪消音。"),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  children: [
+                    for (final seat in public.seats.where((seat) => seat.alive && seat.id != mine.seatId))
+                      FilterChip(
+                        label: Text("${seat.id} ${seat.nickname}"),
+                        selected: mine.marks.contains(seat.id),
+                        onSelected: (selected) => widget.controller.mark(seat.id, marked: selected),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          )
         else if (action.action == "fake_flag")
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
@@ -188,6 +218,16 @@ class _TablePageState extends State<TablePage> {
     }
     if (mine.ready && public.phase != "day_talk") {
       return const Text("已準備，等其他真人。");
+    }
+    if (mine.muted && (public.phase == "day_talk" || public.phase == "draft")) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text("封口中：呢個階段只可以等投票，唔可以發言。"),
+          const SizedBox(height: 8),
+          FilledButton(onPressed: widget.controller.ready, child: const Text("準備好")),
+        ],
+      );
     }
     switch (public.phase) {
       case "boot":
@@ -259,7 +299,9 @@ class _TablePageState extends State<TablePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text("投一個仍在場嘅人，或者棄權。平票就流局，唔會隔離。結算先公開票簿。"),
+            Text(mine.muted
+                ? "你被封口，而家只可以投票。"
+                : "投一個仍在場嘅人，或者棄權。平票就流局，唔會隔離。結算先公開票簿。"),
             if (mine.anonymousVote) ...[
               const SizedBox(height: 8),
               FilterChip(
@@ -293,19 +335,20 @@ class _TablePageState extends State<TablePage> {
           ],
         );
       case "night":
-        if (mine.nightActions.isEmpty) {
+        final nightActions = mine.nightActions.where((item) => item.action != "mark").toList();
+        if (nightActions.isEmpty) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               ..._skillControls(public, mine),
-              Text(mine.skillActions.isEmpty ? "你今夜沒有主動技能。" : "假訊可以喺熄燈放。"),
+              Text(mine.skillActions.isEmpty ? "你今夜沒有主動技能。" : "可以改標記，或者放假訊。"),
               const SizedBox(height: 8),
               FilledButton(onPressed: widget.controller.ready, child: const Text("跳過並準備")),
             ],
           );
         }
-        final selected = mine.nightActions.where((item) => item.action == _nightAction);
-        final choice = selected.isEmpty ? mine.nightActions.first : selected.first;
+        final selected = nightActions.where((item) => item.action == _nightAction);
+        final choice = selected.isEmpty ? nightActions.first : selected.first;
         final targets = public.seats.where((seat) => seat.alive && (choice.action == "cover" || seat.id != mine.seatId));
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -314,7 +357,7 @@ class _TablePageState extends State<TablePage> {
             Wrap(
               spacing: 6,
               children: [
-                for (final action in mine.nightActions)
+                for (final action in nightActions)
                   ChoiceChip(
                     label: Text(action.label),
                     selected: choice.action == action.action,

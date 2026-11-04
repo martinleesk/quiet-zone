@@ -106,6 +106,8 @@ export class RoomHub {
       anonymous?: boolean;
       action?: string;
       targetId?: string;
+      marked?: boolean;
+      token?: string;
     };
     switch (msg.type) {
       case "create_room":
@@ -138,8 +140,12 @@ export class RoomHub {
             action: String(msg.action ?? ""),
             text: msg.text == null ? "" : String(msg.text),
             targetId: msg.targetId == null ? "" : String(msg.targetId),
+            marked: msg.marked !== false && msg.action !== "unmark",
           }),
         );
+        return;
+      case "reclaim":
+        this.reclaim(playerId, String(msg.token ?? ""));
         return;
       case "night_action":
         this.act(playerId, (engine) => {
@@ -219,13 +225,36 @@ export class RoomHub {
   private skill(
     engine: GameEngine,
     playerId: string,
-    msg: { action: string; text: string; targetId: string },
+    msg: { action: string; text: string; targetId: string; marked: boolean },
   ): { ok: true } | { ok: false; code: string; message: string } {
     if (msg.action === "pin") return engine.submitPin(playerId, msg.text);
     if (msg.action === "link") return engine.submitLink(playerId, msg.targetId);
     if (msg.action === "fake_flag") return engine.submitFake(playerId, { mode: "flag", pinId: msg.targetId });
     if (msg.action === "fake_plant") return engine.submitFake(playerId, { mode: "plant", text: msg.text });
+    if (msg.action === "mark" || msg.action === "unmark") {
+      return engine.submitSuspect(playerId, msg.targetId, msg.action === "mark" && msg.marked);
+    }
     return { ok: false, code: "bad_message", message: "未知嘅技能。" };
+  }
+
+  private reclaim(playerId: string, token: string): void {
+    if (this.playerRoom.has(playerId)) {
+      this.fail(playerId, "already_in_room", "你已經喺一間房。");
+      return;
+    }
+    for (const room of this.rooms.values()) {
+      const result = room.engine.reclaim(playerId, token);
+      if (result.ok) {
+        this.playerRoom.set(playerId, room.code);
+        this.broadcast(room);
+        return;
+      }
+      if (result.code !== "token_unknown") {
+        this.fail(playerId, result.code, result.message);
+        return;
+      }
+    }
+    this.fail(playerId, "token_unknown", "搵唔到你原本嘅席。");
   }
 
   private act(

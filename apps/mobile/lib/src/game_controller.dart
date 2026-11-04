@@ -15,13 +15,23 @@ class GameController extends ChangeNotifier {
 
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _sub;
+  String? _serverUrl;
+  String? _reclaimToken;
+  bool _leaving = false;
+  bool _reclaiming = false;
 
   Future<void> createRoom(String url, String nickname) {
-    return _connect(url, {"type": "create_room", "nickname": nickname});
+    _serverUrl = url.trim();
+    _reclaimToken = null;
+    _leaving = false;
+    return _connect(_serverUrl!, {"type": "create_room", "nickname": nickname});
   }
 
   Future<void> joinRoom(String url, String code, String nickname) {
-    return _connect(url, {
+    _serverUrl = url.trim();
+    _reclaimToken = null;
+    _leaving = false;
+    return _connect(_serverUrl!, {
       "type": "join_room",
       "code": code.trim(),
       "nickname": nickname,
@@ -47,6 +57,10 @@ class GameController extends ChangeNotifier {
     });
   }
 
+  void mark(String seatId, {required bool marked}) {
+    skill(marked ? "mark" : "unmark", targetId: seatId);
+  }
+
   void night(String action, {String? targetSeatId}) {
     _send({
       "type": "night_action",
@@ -58,6 +72,8 @@ class GameController extends ChangeNotifier {
   void ready() => _send({"type": "ready"});
 
   Future<void> leave() async {
+    _leaving = true;
+    _reclaimToken = null;
     await _sub?.cancel();
     _sub = null;
     await _channel?.sink.close();
@@ -80,11 +96,9 @@ class GameController extends ChangeNotifier {
       _sub = channel.stream.listen(_onData, onError: (Object err) {
         error = "連線中斷。";
         notifyListeners();
+        _maybeReclaim();
       }, onDone: () {
-        if (snapshot != null && error == null) {
-          error = "連線已關閉。";
-          notifyListeners();
-        }
+        _maybeReclaim();
       });
       await channel.ready;
       _send(hello);
@@ -94,6 +108,22 @@ class GameController extends ChangeNotifier {
       busy = false;
       notifyListeners();
     }
+  }
+
+  void _maybeReclaim() {
+    final token = _reclaimToken;
+    final url = _serverUrl;
+    if (_leaving || _reclaiming || token == null || url == null) {
+      if (!_leaving && snapshot != null && error == null) {
+        error = "連線已關閉。";
+        notifyListeners();
+      }
+      return;
+    }
+    _reclaiming = true;
+    error = "斷線，正在收回席位…";
+    notifyListeners();
+    _connect(url, {"type": "reclaim", "token": token});
   }
 
   void _send(Map<String, dynamic> message) {
@@ -114,6 +144,9 @@ class GameController extends ChangeNotifier {
     if (message is SnapshotMessage) {
       snapshot = message.snapshot;
       error = null;
+      final token = message.snapshot.private.reclaimToken;
+      if (token != null && token.isNotEmpty) _reclaimToken = token;
+      _reclaiming = false;
     } else if (message is ErrorMessage) {
       error = message.error.message;
     }
