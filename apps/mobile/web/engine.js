@@ -98,13 +98,19 @@ var QuietZoneTrial = (() => {
 
   // src/domain/phrases.ts
   var TALK_PHRASES = [
-    "\u6211\u66AB\u6642\u672A\u6709\u5BE6\u9318\uFF0C\u60F3\u518D\u807D\u4E00\u8F2A\u3002",
-    "\u5462\u7968\u6211\u50BE\u5411\u8DDF\u591A\u6578\uFF0C\u4F46\u6703\u4FDD\u7559\u61F7\u7591\u3002",
-    "\u9694\u96E2\u8981\u5C0F\u5FC3\uFF0C\u932F\u7968\u90FD\u6703\u7559\u4F4E\u7DDA\u7D22\u3002",
-    "\u6211\u7528\u6A21\u677F\uFF1A\u672A\u898B\u8DB3\u5920\u5931\u806F\u75D5\u8DE1\u3002",
-    "\u53EF\u5514\u53EF\u4EE5\u6709\u4EBA\u7528\u77ED\u53E5\u8B1B\u4E0B\u4F60\u898B\u5230\u5605\u8A0A\u865F\uFF1F",
-    "\u6211\u4ECA\u8F2A\u5514\u722D\u8FAF\uFF0C\u4EA4\u4F4E\u4E00\u500B\u89C0\u5BDF\u5C31\u5F97\u3002"
+    "\u7591",
+    "\u4FDD",
+    "\u8DDF\u7968",
+    "\u7747\u7DDA\u5831",
+    "\u672A\u5BE6\u9318",
+    "\u89C0\u671B",
+    "\u5C0F\u5FC3\u932F\u7968",
+    "\u518D\u807D\u4E00\u8F2A"
   ];
+  function speakTalk(phrase, nickname) {
+    if ((phrase === "\u7591" || phrase === "\u4FDD") && nickname) return `${phrase} ${nickname}`;
+    return phrase;
+  }
   var DRAFT_PHRASES = [
     "\u6211\u89BA\u5F97\u8981\u518D\u6838\u5C0D\u4E00\u6B21\u5148\u597D\u9694\u96E2\u3002",
     "\u6211\u8DDF\u591A\u6578\u7968\uFF0C\u5514\u8FFD\u52A0\u6307\u63A7\u3002",
@@ -849,9 +855,17 @@ var QuietZoneTrial = (() => {
     aiTalk() {
       if (!this.autoAi) return;
       for (const seat of this.sampleAi(3)) {
-        const phrase = TALK_PHRASES[(this.seatIndex(seat) + this.round) % TALK_PHRASES.length];
-        this.submitChat(seat.playerId, phrase);
+        this.submitChat(seat.playerId, this.aiTalkLine(seat));
       }
+    }
+    /** Same short verbs as the human chips. 疑／保 name one living seat. */
+    aiTalkLine(seat) {
+      const phrase = TALK_PHRASES[(this.seatIndex(seat) + this.round) % TALK_PHRASES.length];
+      if (phrase !== "\u7591" && phrase !== "\u4FDD") return phrase;
+      const others = this.seats.filter((item) => item.alive && item.id !== seat.id);
+      if (others.length === 0) return phrase;
+      const target = others[(this.seatIndex(seat) + this.round) % others.length];
+      return speakTalk(phrase, target.nickname);
     }
     aiDraft() {
       if (!this.autoAi) return;
@@ -885,8 +899,7 @@ var QuietZoneTrial = (() => {
     catchUpAi(seat) {
       if (this.phase === "day_talk") {
         if (!this.isSealed(seat) && !(this.chatCount.get(seat.playerId) ?? 0)) {
-          const phrase = TALK_PHRASES[this.seatIndex(seat) % TALK_PHRASES.length];
-          this.submitChat(seat.playerId, phrase);
+          this.submitChat(seat.playerId, this.aiTalkLine(seat));
         }
         if (seat.roleId === "tip") this.submitPin(seat.playerId, "\u63A5\u7BA1\u5F8C\u91D8\u4F4E\uFF1A\u6211\u6CBF\u7528\u539F\u5E2D\u89C0\u5BDF\u3002");
         if (seat.roleId === "link") {

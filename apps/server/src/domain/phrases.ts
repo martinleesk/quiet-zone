@@ -1,12 +1,22 @@
-/** Template phrase bank. AI never free-writes. */
+/**
+ * Short talk vocabulary. The trial chips and AI seats share these words.
+ * 「疑」「保」are prefixes; the speaker adds a nickname.
+ */
 export const TALK_PHRASES = [
-  "我暫時未有實錘，想再聽一輪。",
-  "呢票我傾向跟多數，但會保留懷疑。",
-  "隔離要小心，錯票都會留低線索。",
-  "我用模板：未見足夠失聯痕跡。",
-  "可唔可以有人用短句講下你見到嘅訊號？",
-  "我今輪唔爭辯，交低一個觀察就得。",
+  "疑",
+  "保",
+  "跟票",
+  "睇線報",
+  "未實錘",
+  "觀望",
+  "小心錯票",
+  "再聽一輪",
 ] as const;
+
+export function speakTalk(phrase: string, nickname?: string): string {
+  if ((phrase === "疑" || phrase === "保") && nickname) return `${phrase} ${nickname}`;
+  return phrase;
+}
 
 export const DRAFT_PHRASES = [
   "我覺得要再核對一次先好隔離。",

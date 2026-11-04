@@ -44,21 +44,57 @@
     .brand { color: var(--gold); font-weight: 700; white-space: nowrap; }
     .phase { color: var(--text); font-size: 16px; font-weight: 700; }
     .role-chip { color: var(--muted); font-size: 12px; }
-    .clock-wrap { display: flex; align-items: baseline; gap: 2px; min-width: 72px; }
+    .bar-hero { display: flex; align-items: center; gap: 12px; }
+    .clock-wrap { display: flex; align-items: baseline; gap: 2px; min-width: 88px; }
     .clock {
       color: var(--gold);
       font-variant-numeric: tabular-nums;
-      font-size: 34px;
+      font-size: 64px;
       font-weight: 800;
-      line-height: 1;
+      line-height: .85;
     }
     .clock.low { color: var(--danger); animation: pulse 1s ease-in-out infinite; }
     .clock-unit { color: var(--gold); font-size: 12px; }
     .clock.low + .clock-unit { color: var(--danger); }
     @keyframes pulse { 50% { opacity: .55; } }
-    .coach { color: var(--gold); font-size: 18px; font-weight: 800; line-height: 1.2; }
-    .arrows { display: flex; gap: 10px; flex-wrap: wrap; }
-    .arrows span { color: #f0a05a; font-size: 13px; font-weight: 800; }
+    .phase { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .coach { color: var(--gold); font-size: 18px; font-weight: 800; line-height: 1.1; }
+    body[data-phase="day_talk"] .coach,
+    body[data-phase="draft"] .coach,
+    body[data-phase="vote"] .coach,
+    body[data-phase="night"] .coach { font-size: 28px; }
+    .verb-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .verb-chip {
+      border: 0;
+      border-radius: 999px;
+      background: var(--gold);
+      color: #0e141b;
+      font-weight: 800;
+      padding: 8px 12px;
+      font-size: 15px;
+    }
+    .verb-chip.ghost { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
+    .verb-chip.on { outline: 2px solid #fff; }
+    .target-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .target {
+      flex: 1 1 108px;
+      min-height: 52px;
+      border-radius: 14px;
+      border: 2px solid var(--gold);
+      background: #243044;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 8px;
+    }
+    .target.on { background: var(--gold); color: #0e141b; }
+    .target-name { font-weight: 800; font-size: 16px; line-height: 1.1; }
+    .target-id { font-size: 11px; opacity: .75; }
+    .cue { color: var(--gold); font-weight: 800; font-size: 22px; letter-spacing: .04em; }
+    .skill-block { display: flex; flex-direction: column; gap: 6px; }
+    .dock > .verb { width: 100%; }
     .index-no { font-size: 32px; font-weight: 800; color: #f0a05a; line-height: 1; }
     .nameplate { display: inline-block; padding: 2px 10px; font-weight: 800; font-size: 22px; color: #0e141b; }
     .role-card { display: flex; gap: 12px; width: min(640px, 100%); background: #12181f; border-radius: 16px; padding: 12px; border-left: 8px solid var(--faction, var(--gold)); }
@@ -283,15 +319,22 @@
       h1 { font-size: 26px; }
       .copy { padding: 10px 14px; }
       .me-card img { width: 42px; height: 54px; }
-      .dock { max-height: 58%; }
+      .dock { max-height: 62%; }
+      .clock { font-size: 48px; }
+      .coach,
+      body[data-phase="day_talk"] .coach,
+      body[data-phase="draft"] .coach,
+      body[data-phase="vote"] .coach,
+      body[data-phase="night"] .coach { font-size: 22px; }
     }
   </style>
 </head>
 <body>
   <header class="bar">
-    <div class="bar-top">
+    <div class="bar-hero">
       <div>
         <div class="phase" id="phase-label">試玩</div>
+        <div class="coach" id="coach">而家做咩：11 人隱藏身份。你要估邊三個係消音組。</div>
         <div class="role-chip" id="role-chip">隱藏身份 · 11 席</div>
       </div>
       <div class="clock-wrap">
@@ -300,17 +343,24 @@
       </div>
       <span class="hint-turn">請轉橫向</span>
       <span class="spacer"></span>
+      <button type="button" id="open-detail">詳情</button>
       <button type="button" id="open-codex">角色圖鑑</button>
       <button type="button" id="leave" hidden>離開</button>
     </div>
-    <div class="coach" id="coach">而家做咩：11 人隱藏身份。你要估邊三個係消音組。</div>
-    <div class="arrows" id="coach-arrows"></div>
     <div class="meter" id="meter"><div id="meter-fill"></div></div>
   </header>
   <main id="app"></main>
   <div class="overlay" id="overlay" hidden>
     <div class="sheet" id="sheet"></div>
   </div>
+  <section class="codex" id="phase-detail" hidden>
+    <div style="display:flex;align-items:center;gap:8px">
+      <h2>詳情</h2>
+      <span class="spacer"></span>
+      <button type="button" class="texty" id="close-detail">關閉</button>
+    </div>
+    <div class="overview" id="detail-body"></div>
+  </section>
   <section class="codex" id="codex" hidden>
     <div style="display:flex;align-items:center;gap:8px">
       <h2>標準 Mode</h2>
