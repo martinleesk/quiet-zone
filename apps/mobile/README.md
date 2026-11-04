@@ -14,3 +14,5 @@ flutter run
 遊戲規則唔喺呢度結算。客戶端只顯示伺服器落嚟嘅公開狀態同自己嘅私人包。
 
 美術同性別鎖定見 [ART.md](ART.md)。角色半身同燈亮／熄燈場景係風格化 3D 渲染。
+
+畫面示範（唔使伺服器）：`flutter run -d chrome -t lib/demo_main.dart`。手機瀏覽器可以開 [`docs/ui-demo`](../../docs/ui-demo/README.md)。

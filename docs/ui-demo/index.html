@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>消音區 · 畫面示範</title>
+  <style>
+    :root {
+      --deep: #0e141b;
+      --card: #17202a;
+      --gold: #e7c27a;
+      --line: #3a4a5c;
+      --text: #e8eef4;
+      --muted: #9aa7b5;
+      --danger: #e07a7a;
+      --ai: #7eb6ff;
+      --lh: #e7c27a;
+      --si: #e07a7a;
+      --gr: #9aa7b5;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--deep); color: var(--text); }
+    body {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      font: 14px/1.35 "PingFang HK", "PingFang TC", "Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    button, input { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 4px 8px;
+      background: #121a22;
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+    .brand { color: var(--gold); font-weight: 700; margin-right: 4px; white-space: nowrap; }
+    .bar button {
+      border: 0;
+      background: transparent;
+      border-radius: 999px;
+      padding: 4px 10px;
+    }
+    .bar button.on { background: var(--gold); color: var(--deep); font-weight: 700; }
+    .hint { margin-left: auto; color: var(--muted); font-size: 12px; }
+    main { flex: 1; min-height: 0; }
+    .screen { display: none; height: 100%; min-height: 0; }
+    .screen.on { display: flex; }
+    .split { display: flex; width: 100%; height: 100%; min-height: 0; }
+    .scene {
+      position: relative;
+      flex: 6;
+      min-width: 0;
+      background: #102028 center/cover no-repeat;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+    .scene.day { background-image: url("art/scenes/day_talk.jpg"); }
+    .scene.night { background-image: url("art/scenes/night.jpg"); }
+    .scene::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(14,20,27,.15), rgba(14,20,27,.35) 46%, rgba(14,20,27,.82));
+      pointer-events: none;
+    }
+    .scene .copy, .stage { position: relative; z-index: 1; }
+    .copy { padding: 16px 22px 14px; }
+    h1 { margin: 0; color: var(--gold); font-size: 34px; font-weight: 650; letter-spacing: .04em; }
+    .sub { margin: 2px 0 8px; font-size: 16px; }
+    .copy p, .panel p, .dock p { margin: 0 0 6px; }
+    .small { color: var(--muted); font-size: 12px; }
+    .panel {
+      flex: 5;
+      min-width: 0;
+      overflow: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field span { font-size: 12px; color: var(--muted); }
+    input[type="text"] {
+      background: transparent;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 8px 10px;
+    }
+    .btn {
+      border: 1px solid var(--gold);
+      background: transparent;
+      color: var(--gold);
+      border-radius: 20px;
+      padding: 8px 12px;
+      text-align: center;
+    }
+    .btn.fill { background: var(--gold); color: var(--deep); font-weight: 700; border-color: var(--gold); }
+    .btn.block { width: 100%; }
+    .row-btns { display: flex; gap: 8px; }
+    .row-btns .btn { flex: 1; }
+    .code-label { font-size: 12px; }
+    .code { font-size: 36px; letter-spacing: .35em; margin: 0; }
+    .seats { display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+    .chip, .seat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 6px 8px;
+    }
+    .dot {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 1px solid #8aa0b4; background: #243044; flex: none;
+    }
+    .badge {
+      background: var(--ai); color: var(--deep); font-size: 11px; font-weight: 800;
+      border-radius: 999px; padding: 1px 6px;
+    }
+    .stage { flex: 1; display: flex; flex-direction: column; min-height: 0; padding: 6px; }
+    .ring { display: flex; gap: 4px; }
+    .ring .seat {
+      flex: 1;
+      min-width: 0;
+      flex-direction: column;
+      text-align: center;
+      background: rgba(23,32,42,.55);
+      padding: 4px 2px;
+      font-size: 11px;
+      line-height: 1.15;
+    }
+    .seat.me { border-color: var(--gold); background: rgba(36,48,68,.75); }
+    .seat img, .face {
+      width: 28px; height: 34px; object-fit: cover; object-position: center top; border-radius: 6px;
+    }
+    .face { border-radius: 50%; height: 28px; }
+    .table-line {
+      height: 10px; margin: 4px 16px;
+      border-radius: 999px;
+      background: rgba(16,24,32,.45);
+      border: 1px solid rgba(231,194,122,.4);
+    }
+    .me-card {
+      display: flex; gap: 8px; margin-top: 6px;
+      background: rgba(14,20,27,.82);
+      border-radius: 14px; padding: 8px;
+    }
+    .me-card img { width: 52px; height: 66px; object-fit: cover; object-position: center top; border-radius: 12px; }
+    .me-card h2 { margin: 0; font-size: 16px; }
+    .kicker { font-size: 12px; color: var(--muted); }
+    .log-pane { flex: 6; min-width: 0; display: flex; flex-direction: column; background: rgba(14,20,27,.95); }
+    .log { flex: 1; overflow: auto; padding: 8px 12px; }
+    .log h3 { margin: 8px 0 4px; font-size: 13px; }
+    .dock {
+      border-top: 1px solid var(--line);
+      padding: 8px 12px 10px;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chips button, .pick {
+      border: 1px solid var(--line); background: #243044; border-radius: 16px; padding: 4px 8px;
+    }
+    .pick.on { border-color: var(--gold); color: var(--gold); }
+    .codex { flex-direction: column; padding: 8px 12px 10px; overflow: auto; }
+    .codex h2 { margin: 0 0 4px; color: var(--gold); font-size: 16px; }
+    .bands { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+    .band-label { font-weight: 700; margin-bottom: 4px; }
+    .lh { color: var(--lh); } .si { color: var(--si); } .gr { color: var(--gr); }
+    .tiles { display: flex; gap: 6px; }
+    .tile {
+      flex: 1; min-width: 0;
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+      padding: 4px; text-align: center;
+    }
+    .tile.on { border-width: 2px; }
+    .tile .busts { display: flex; justify-content: center; gap: 4px; }
+    .bust {
+      width: 44px; height: 56px; object-fit: cover; object-position: center top; border-radius: 8px;
+    }
+    .bust.f { object-position: 18% 42%; }
+    .bust.m { object-position: 74% 40%; }
+    .tile .name { display: block; margin-top: 4px; }
+    .codex-body { display: flex; gap: 8px; min-height: 0; flex: 1; }
+    .overview { flex: 1; min-width: 0; overflow: auto; }
+    .detail {
+      width: min(300px, 42%);
+      background: #121a22;
+      border-left: 1px solid var(--line);
+      padding: 8px 12px 12px;
+      overflow: auto;
+    }
+    .detail[hidden] { display: none; }
+    .detail-head { display: flex; gap: 10px; align-items: flex-start; }
+    .detail-head img { width: 48px; height: 64px; object-fit: cover; object-position: center top; border-radius: 8px; }
+    .detail h3 { margin: 0; font-size: 18px; }
+    .x {
+      margin-left: auto; border: 0; background: transparent; font-size: 18px; line-height: 1;
+    }
+    .toast {
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      background: #243044; border: 1px solid var(--gold); color: var(--text);
+      padding: 8px 12px; border-radius: 10px; display: none;
+    }
+    @media (max-width: 720px), (max-height: 420px) {
+      h1 { font-size: 28px; }
+      .code { font-size: 28px; }
+      .hint { display: none; }
+      .bust { width: 36px; height: 48px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="bar">
+    <span class="brand">消音區畫面</span>
+    <button type="button" data-screen="home" class="on">主頁</button>
+    <button type="button" data-screen="lobby">組席</button>
+    <button type="button" data-screen="codex">圖鑑</button>
+    <button type="button" data-screen="day">燈亮</button>
+    <button type="button" data-screen="night">熄燈</button>
+    <span class="hint">請轉橫向。呢個係畫面示範，未連伺服器。</span>
+  </header>
+  <main>
+    <section class="screen on" id="home">
+      <div class="split">
+        <div class="scene day">
+          <div class="copy">
+            <h1>消音區</h1>
+            <div class="sub">封鎖夜 · 標準 Mode</div>
+            <p>私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。</p>
+            <p class="small">Android 模擬器可試 ws://10.0.2.2:8787/ws。本機桌面用 127.0.0.1。</p>
+          </div>
+        </div>
+        <form class="panel" id="home-form">
+          <button class="btn block" type="button" data-go="codex">角色圖鑑</button>
+          <label class="field">伺服器<input type="text" value="ws://127.0.0.1:8787/ws"></label>
+          <label class="field">暱稱<input type="text" value="夜歸人"></label>
+          <button class="btn fill block" type="button" data-go="lobby">開私人房</button>
+          <label class="field">房間代碼<input type="text" placeholder="ABCD"></label>
+          <button class="btn block" type="button" data-go="lobby">用代碼加入</button>
+        </form>
+      </div>
+    </section>
+
+    <section class="screen" id="lobby">
+      <div class="split">
+        <div class="scene day">
+          <div class="copy">
+            <div class="code-label">房間代碼</div>
+            <p class="code">ABCD</p>
+            <p>標準 Mode · 3／11 席。齊人準備後，房主先可以開。空位由 AI 補。</p>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="seats">
+            <div class="chip"><span class="dot"></span>s1 夜歸人<span>未準備</span></div>
+            <div class="chip"><span class="dot"></span>s2 霧港燈<span class="badge">AI</span></div>
+            <div class="chip"><span class="dot"></span>s3 潮聲<span>已準備</span></div>
+          </div>
+          <button class="btn fill block" type="button">準備好</button>
+          <button class="btn fill block" type="button" data-go="day">開始封鎖（AI 補滿 11 席）</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="codex">
+      <div class="codex">
+        <h2>標準 Mode</h2>
+        <p>公開規則。開局前或者局中都可以睇。撳一個角色先睇陣營同技能，唔會顯示你或者席上任何人嘅私人身分。</p>
+        <p>勝負次序：灰頻獨贏，然後消音組，然後燈塔網。11 席係燈塔網 7、消音組 3、灰頻 1。閒職會派兩席，圖鑑只列一次。</p>
+        <div class="codex-body">
+          <div class="overview">
+            <div class="band-label lh">燈塔網</div>
+            <div class="tiles" id="tiles-lighthouse"></div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <div style="flex:3;min-width:0">
+                <div class="band-label si">消音組</div>
+                <div class="tiles" id="tiles-silence"></div>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div class="band-label gr">灰頻</div>
+                <div class="tiles" id="tiles-grey"></div>
+              </div>
+            </div>
+          </div>
+          <aside class="detail" id="detail" hidden>
+            <div class="detail-head">
+              <span id="detail-busts"></span>
+              <div style="flex:1;min-width:0">
+                <h3 id="detail-name"></h3>
+                <div id="detail-faction"></div>
+              </div>
+              <button class="x" type="button" id="detail-close" aria-label="關閉詳情">×</button>
+            </div>
+            <p id="detail-skill" style="margin-top:8px"></p>
+            <div class="kicker" style="margin-top:8px">點贏</div>
+            <p id="detail-win"></p>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="day">
+      <div class="split">
+        <div class="scene day">
+          <div class="stage" id="day-seats"></div>
+          <div class="me-card">
+            <img src="art/roles/cover.jpg" alt="">
+            <div>
+              <div class="kicker">你嘅身分</div>
+              <h2>掩護員 · 燈塔網</h2>
+              <p>臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。</p>
+            </div>
+          </div>
+        </div>
+        <div class="log-pane">
+          <div class="log">
+            <p>燈亮。可以發言、釘選，或者準備。</p>
+            <p>第 1 輪 · 第 0 夜 · 失聯 0／3</p>
+            <p>公開組成　燈塔網 7 · 消音組 3 · 灰頻 1</p>
+            <button class="btn" type="button" data-go="codex" style="padding:4px 0;border:0">角色圖鑑</button>
+            <h3>公開頻道</h3>
+            <div id="day-log"><p>公開組成已廣播。</p></div>
+          </div>
+          <div class="dock">
+            <div class="chips" id="talk-chips">
+              <button type="button">我暫時未有實錘。</button>
+              <button type="button">我傾向跟多數。</button>
+              <button type="button">隔離要小心。</button>
+              <button type="button">未見足夠失聯痕跡。</button>
+            </div>
+            <label class="field">短句<input id="talk" type="text"></label>
+            <div class="row-btns">
+              <button class="btn fill" type="button" id="send">送出</button>
+              <button class="btn" type="button" id="ready-day">準備好</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="night">
+      <div class="split">
+        <div class="scene night">
+          <div class="stage" id="night-seats"></div>
+          <div class="me-card">
+            <img src="art/roles/cover.jpg" alt="">
+            <div>
+              <div class="kicker">你嘅身分</div>
+              <h2>掩護員 · 燈塔網</h2>
+              <p>臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。</p>
+            </div>
+          </div>
+        </div>
+        <div class="log-pane">
+          <div class="log">
+            <p>熄燈。掩護、掃頻、失聯，或者跳過。</p>
+            <p>第 1 輪 · 第 1 夜 · 失聯 0／3</p>
+            <p>公開組成　燈塔網 7 · 消音組 3 · 灰頻 1</p>
+            <h3>公開頻道</h3>
+            <p>公開組成已廣播。</p>
+            <div id="night-log"></div>
+          </div>
+          <div class="dock">
+            <div class="chips" id="night-actions">
+              <button type="button" class="pick on" data-action="臨時掩護">臨時掩護</button>
+              <button type="button" class="pick" data-action="跳過今夜">跳過今夜</button>
+            </div>
+            <div class="chips" id="night-targets"></div>
+            <p class="small">未提交就準備，會當跳過。</p>
+            <div class="row-btns">
+              <button class="btn fill" type="button" id="night-submit">提交行動</button>
+              <button class="btn" type="button">準備好</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script>
+    const roles = [
+      { id: "tip", name: "線報員", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "釘選殘訊：每個燈亮可釘一條公開資訊上時間線，唔佔發言格。", busts: ["art/roles/tip.jpg"] },
+      { id: "sweep", name: "掃頻員", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "熄燈掃頻：私下得知目標係「消音痕跡」定「訊號乾淨」。", busts: ["art/roles/sweep.jpg"] },
+      { id: "cover", name: "掩護員", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "臨時掩護：免疫該夜失聯。成功後下一夜唔可以再成功。", busts: ["art/roles/cover.jpg"] },
+      { id: "echo", name: "回波師", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "失聯回波：有人被投票隔離後，你私下收到陣營殘片。", busts: ["art/roles/echo.jpg"] },
+      { id: "link", name: "通聯官", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "核對通聯：每個燈亮可查一人上回合用過主動技能未，唔會話你知係邊種。", busts: ["art/roles/link.jpg"] },
+      { id: "civilian", name: "燈塔閒職", faction: "lighthouse", label: "燈塔網", color: "#E7C27A", win: "消音組全部離場就解封。", skill: "無主動技能。你可以發言、草稿、投票。", busts: ["art/roles/civilian_f.jpg", "art/roles/civilian_m.jpg"] },
+      { id: "silencer", name: "消音手", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功失聯 3 次，或者燈塔網已無法投票。", skill: "執行失聯：熄燈令一名未受掩護嘅玩家失聯移出。", busts: ["art/roles/silencer.jpg"] },
+      { id: "decoy", name: "假訊員", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功失聯 3 次，或者燈塔網已無法投票。", skill: "投放假訊：每局兩次。可以將釘選標做待核實，或者放一句來源未核。", busts: ["art/roles/decoy.jpg"] },
+      { id: "plant", name: "影內應", faction: "silence", label: "消音組", color: "#E07A7A", win: "成功失聯 3 次，或者燈塔網已無法投票。", skill: "訊號霧：第一次被掃頻固定回「訊號乾淨」。每局一次匿名票。", busts: ["art/roles/plant.jpg"] },
+      { id: "warrant", name: "孤證客", faction: "grey", label: "灰頻", color: "#9AA7B5", win: "孤證客仍在場，正確標記消音組達 2 即獨贏。", skill: "私密標記消音組。仍在場且正確標記達 2 即灰頻獨贏。每局可封口一人。", busts: ["art/roles/warrant.jpg"] }
+    ];
+    const seats = [
+      ["s1", "夜歸人", false, true, false],
+      ["s2", "霧港燈", true, true, false],
+      ["s3", "潮聲", true, true, false],
+      ["s4", "北角", true, true, false],
+      ["s5", "深水", true, true, false],
+      ["s6", "啟德", true, true, false],
+      ["s7", "西環", true, false, false],
+      ["s8", "銅鑼", true, true, true],
+      ["s9", "紅磡", true, true, false],
+      ["s10", "荃灣", true, true, false],
+      ["s11", "沙田", true, true, false]
+    ];
+
+    function show(id) {
+      document.querySelectorAll(".screen").forEach((node) => node.classList.toggle("on", node.id === id));
+      document.querySelectorAll(".bar button").forEach((node) => node.classList.toggle("on", node.dataset.screen === id));
+    }
+    document.querySelectorAll("[data-screen]").forEach((node) => node.addEventListener("click", () => show(node.dataset.screen)));
+    document.querySelectorAll("[data-go]").forEach((node) => node.addEventListener("click", () => show(node.dataset.go)));
+
+    function busts(role) {
+      return role.busts.map((src, index) => {
+        const cls = role.id === "civilian" ? (index === 0 ? "bust f" : "bust m") : "bust";
+        return `<img class="${cls}" src="${src}" alt="">`;
+      }).join("");
+    }
+    function paintTiles(faction, elementId) {
+      const host = document.getElementById(elementId);
+      host.innerHTML = roles.filter((role) => role.faction === faction).map((role) => `
+        <button type="button" class="tile" data-id="${role.id}">
+          <span class="busts">${busts(role)}</span>
+          <span class="name">${role.name}</span>
+        </button>`).join("");
+      host.querySelectorAll(".tile").forEach((tile) => tile.addEventListener("click", () => openRole(tile.dataset.id)));
+    }
+    function openRole(id) {
+      const role = roles.find((item) => item.id === id);
+      document.querySelectorAll(".tile").forEach((tile) => {
+        tile.classList.toggle("on", tile.dataset.id === id);
+        tile.style.borderColor = tile.dataset.id === id ? role.color : "";
+      });
+      const detail = document.getElementById("detail");
+      detail.hidden = false;
+      document.getElementById("detail-busts").innerHTML = busts(role);
+      document.getElementById("detail-name").textContent = role.name;
+      const faction = document.getElementById("detail-faction");
+      faction.textContent = role.label;
+      faction.style.color = role.color;
+      document.getElementById("detail-skill").textContent = role.skill;
+      document.getElementById("detail-win").textContent = role.win;
+    }
+    paintTiles("lighthouse", "tiles-lighthouse");
+    paintTiles("silence", "tiles-silence");
+    paintTiles("grey", "tiles-grey");
+    document.getElementById("detail-close").addEventListener("click", () => {
+      document.getElementById("detail").hidden = true;
+      document.querySelectorAll(".tile.on").forEach((tile) => { tile.classList.remove("on"); tile.style.borderColor = ""; });
+    });
+
+    function seatRow(list, hostId) {
+      hostId = hostId || "";
+      return `<div class="ring">${list.map(([id, name, ai, alive, sealed]) => {
+        const face = id === "s1"
+          ? `<img src="art/roles/cover.jpg" alt="">`
+          : `<span class="face"></span>`;
+        const extra = `${alive ? "" : "<div>離場</div>"}${sealed ? "<div>封口</div>" : ""}`;
+        const badge = ai ? `<span class="badge">AI</span>` : "";
+        return `<div class="seat${id === "s1" ? " me" : ""}">${face}<div>${id} ${name}</div>${extra}${badge}</div>`;
+      }).join("")}</div>`;
+    }
+    function mountSeats(id) {
+      const far = seats.slice(0, 6);
+      const near = seats.slice(6);
+      document.getElementById(id).innerHTML = `${seatRow(far)}${id === "night-seats" ? "" : ""}<div class="table-line"></div>${seatRow(near)}`;
+    }
+    mountSeats("day-seats");
+    mountSeats("night-seats");
+
+    document.getElementById("talk-chips").addEventListener("click", (event) => {
+      if (event.target.tagName === "BUTTON") document.getElementById("talk").value = event.target.textContent;
+    });
+    document.getElementById("send").addEventListener("click", () => {
+      const text = document.getElementById("talk").value.trim();
+      if (!text) return;
+      const line = document.createElement("p");
+      line.textContent = `夜歸人：${text}`;
+      document.getElementById("day-log").appendChild(line);
+      document.getElementById("talk").value = "";
+    });
+    document.getElementById("ready-day").addEventListener("click", () => toast("已準備，等其他真人。"));
+
+    const targets = document.getElementById("night-targets");
+    seats.filter((seat) => seat[3] && seat[0] !== "s1").forEach(([id, name]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "pick";
+      button.textContent = `${id} ${name}`;
+      button.addEventListener("click", () => {
+        targets.querySelectorAll(".pick").forEach((node) => node.classList.remove("on"));
+        button.classList.add("on");
+      });
+      targets.appendChild(button);
+    });
+    document.getElementById("night-actions").addEventListener("click", (event) => {
+      const button = event.target.closest("button");
+      if (!button) return;
+      document.querySelectorAll("#night-actions .pick").forEach((node) => node.classList.remove("on"));
+      button.classList.add("on");
+      targets.hidden = button.dataset.action === "跳過今夜";
+    });
+    document.getElementById("night-submit").addEventListener("click", () => {
+      const action = document.querySelector("#night-actions .pick.on").dataset.action;
+      const target = document.querySelector("#night-targets .pick.on");
+      const line = document.createElement("p");
+      line.textContent = target && action !== "跳過今夜" ? `你提交咗：${action} → ${target.textContent}` : `你提交咗：${action}`;
+      document.getElementById("night-log").appendChild(line);
+    });
+
+    function toast(text) {
+      const node = document.getElementById("toast");
+      node.textContent = text;
+      node.style.display = "block";
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => { node.style.display = "none"; }, 1600);
+    }
+
+    const params = new URLSearchParams(location.search);
+    if (params.get("screen")) show(params.get("screen"));
+    if (params.get("role")) {
+      show("codex");
+      openRole(params.get("role"));
+    }
+  </script>
+</body>
+</html>
