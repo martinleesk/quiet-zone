@@ -217,12 +217,10 @@ function faceHtml(pub, priv, seat) {
 }
 
 function seatCard(pub, priv, seat) {
-  const bits = [`${esc(seat.id)} ${esc(seat.nickname)}`];
-  if (!seat.alive) bits.push("離場");
-  if (seat.sealed) bits.push("封口");
   const badge = seat.isAi ? `<span class="badge">AI</span>` : "";
+  const seal = seat.sealed ? `<span class="seal-mini">封</span>` : "";
   const cls = `seat${priv.seatId === seat.id ? " me" : ""}${seat.alive ? "" : " dead"}`;
-  return `<div class="${cls}">${faceHtml(pub, priv, seat)}<div>${bits.join("<br>")}</div>${badge}</div>`;
+  return `<div class="${cls}">${faceHtml(pub, priv, seat)}${seal}<div class="seat-name">${esc(seat.nickname)}</div>${badge}</div>`;
 }
 
 function seatRing(pub, priv) {
@@ -237,14 +235,22 @@ function roleCard(priv, phase) {
   if (!role) return "";
   const mates = (priv.teammates || []).map((mate) => `${esc(mate.nickname)}（${esc(mate.roleName)}）`).join("、");
   const marks = (priv.marks || []).join("、");
-  const actionPhase = phase === "day_talk" || phase === "draft" || phase === "vote" || phase === "night";
+  const lean = phase === "draft" || phase === "vote" || phase === "night";
+  const actionPhase = lean || phase === "day_talk";
   const essay = actionPhase ? "" : `${role.mnemonic ? `<p class="small">記法：${esc(role.mnemonic)}</p>` : ""}<p>${esc(role.skill)}</p>`;
-  return `<div class="me-card"><img class="${bustClass(role.id, priv.seatId)}" src="${esc(bustSrc(role.id, priv.seatId))}" alt=""><div><div class="kicker">你嘅身分</div><h2>${esc(role.name)} · ${esc(role.factionLabel)}</h2>${essay}${mates ? `<p>組員：${mates}</p>` : ""}${marks ? `<p>你嘅標記：${esc(marks)}</p>` : ""}</div></div>`;
+  const title = lean ? esc(role.name) : `${esc(role.name)} · ${esc(role.factionLabel)}`;
+  const kicker = lean ? "" : `<div class="kicker">你嘅身分</div>`;
+  return `<div class="me-card"><img class="${bustClass(role.id, priv.seatId)}" src="${esc(bustSrc(role.id, priv.seatId))}" alt=""><div>${kicker}<h2>${title}</h2>${essay}${mates ? `<p>組員：${mates}</p>` : ""}${marks ? `<p>標記：${esc(marks)}</p>` : ""}</div></div>`;
+}
+
+function focusPhase(phase) {
+  return phase === "draft" || phase === "vote" || phase === "night";
 }
 
 function logBlock(pub, priv) {
   const lines = [];
-  if (pub.winner) {
+  const brief = focusPhase(pub.phase);
+  if (!brief && pub.winner) {
     const reveal = (pub.reveal || []).map((seat) => {
       const src = bustSrc(seat.roleId, seat.seatId);
       return `<div class="chip"><img class="${bustClass(seat.roleId, seat.seatId)}" src="${esc(src)}" alt=""><span>${esc(seat.seatId)} ${esc(seat.nickname)} · ${esc(seat.roleName)} · ${esc(seat.factionLabel)}${seat.alive ? "" : " · 離場"}</span></div>`;
@@ -252,19 +258,29 @@ function logBlock(pub, priv) {
     lines.push(`<div class="card"><div class="kicker">終局</div><h2>${esc(pub.winner.factionLabel)}</h2><p>${esc(pub.winner.reason)}</p><div class="seats">${reveal}</div></div>`);
   }
   if (priv.sealCard) lines.push(`<div class="seal">${esc(priv.sealCard)}</div>`);
-  lines.push(`<p>第 ${esc(pub.round)} 輪 · 第 ${esc(pub.night)} 夜 · 失聯 ${esc(pub.disconnects)}／${esc(pub.disconnectsToWin)}</p>`);
-  if (pub.banner) lines.push(`<p>${esc(pub.banner)}</p>`);
-  const comp = pub.composition || {};
-  lines.push(`<p class="small">公開組成　燈塔網 ${esc(comp.lighthouse)} · 消音組 ${esc(comp.silence)} · 灰頻 ${esc(comp.grey)}</p>`);
-  for (const pin of pub.pins || []) lines.push(`<p>釘選${pin.unverified ? "（待核實）" : ""}｜${esc(pin.text)}</p>`);
-  for (const note of priv.inbox || []) lines.push(`<p>${esc(note)}</p>`);
-  for (const remnant of priv.remnants || []) lines.push(`<p>殘片｜${esc(remnant.nickname)} · ${esc(remnant.factionLabel)}：${esc(remnant.text)}</p>`);
-  lines.push(`<h3 style="margin:8px 0 4px;font-size:13px">公開頻道</h3>`);
-  for (const line of pub.log || []) lines.push(`<p class="log-line">${esc(ticketText(line.text, pub))}</p>`);
+  if (!brief) {
+    lines.push(`<p>第 ${esc(pub.round)} 輪 · 第 ${esc(pub.night)} 夜 · 失聯 ${esc(pub.disconnects)}／${esc(pub.disconnectsToWin)}</p>`);
+    if (pub.banner) lines.push(`<p>${esc(pub.banner)}</p>`);
+    const comp = pub.composition || {};
+    lines.push(`<p class="small">公開組成　燈塔網 ${esc(comp.lighthouse)} · 消音組 ${esc(comp.silence)} · 灰頻 ${esc(comp.grey)}</p>`);
+    for (const pin of pub.pins || []) lines.push(`<p>釘選${pin.unverified ? "（待核實）" : ""}｜${esc(pin.text)}</p>`);
+    for (const note of priv.inbox || []) lines.push(`<p>${esc(note)}</p>`);
+    for (const remnant of priv.remnants || []) lines.push(`<p>殘片｜${esc(remnant.nickname)} · ${esc(remnant.factionLabel)}：${esc(remnant.text)}</p>`);
+    lines.push(`<h3 style="margin:8px 0 4px;font-size:13px">公開頻道</h3>`);
+  } else {
+    const note = (priv.inbox || []).at(-1);
+    if (note) lines.push(`<p>${esc(note)}</p>`);
+  }
+  const source = brief
+    ? (pub.log || []).filter((line) => !String(line.text || "").startsWith("票簿"))
+    : (pub.log || []);
+  const log = brief ? source.slice(-3) : source;
+  for (const line of log) lines.push(`<p class="log-line">${esc(ticketText(line.text, pub))}</p>`);
   if (priv.role && priv.role.faction === "silence" && pub.phase === "night") {
-    lines.push(`<h3 style="margin:8px 0 4px;font-size:13px">消音組夜訊</h3>`);
+    if (!brief) lines.push(`<h3 style="margin:8px 0 4px;font-size:13px">消音組夜訊</h3>`);
     for (const note of priv.silenceChannel || []) lines.push(`<p class="log-line">${esc(note.nickname)}：${esc(note.text)}</p>`);
   }
+  if (brief) lines.push(`<p class="small">全文喺詳情。</p>`);
   if (errorText) lines.push(`<p class="err">${esc(errorText)}</p>`);
   return lines.join("");
 }
@@ -289,7 +305,7 @@ function targetGrid(seats, act, marked) {
   const marks = marked || new Set();
   return `<div class="target-grid">${seats.map((seat) => {
     const on = act === "pick" ? selected === seat.id : marks.has(seat.id);
-    return `<button type="button" class="target${on ? " on" : ""}" data-act="${act}" data-id="${esc(seat.id)}"><span class="target-name">${esc(seat.nickname)}</span><span class="target-id">${esc(seat.id)}</span></button>`;
+    return `<button type="button" class="target${on ? " on" : ""}" data-act="${act}" data-id="${esc(seat.id)}"><span class="target-name">${esc(seat.nickname)}</span></button>`;
   }).join("")}</div>`;
 }
 
@@ -407,7 +423,8 @@ function detailHtml() {
     ? `<h3>${esc(role.name)} · ${esc(role.factionLabel || "")}</h3><p class="small">記法：${esc(role.mnemonic || "")}</p><p>${esc(role.skill || "")}</p>${role.when ? `<p class="small">幾時用：${esc(role.when)}</p>` : ""}`
     : `<p class="small">身分未派。全文亦喺角色圖鑑。</p>`;
   const tips = ((priv && priv.tips) || []).map((tip) => `<p>${esc(tip.text)}</p>`).join("");
-  return `<p class="coach">而家做咩：${esc(coach.line)}</p>${bullets}${essay}${tips}`;
+  const channel = pub && priv ? `<h3 style="margin:12px 0 4px;font-size:13px">頻道</h3>${logBlock({ ...pub, phase: "detail" }, priv)}` : "";
+  return `<p class="coach">而家做咩：${esc(coach.line)}</p>${bullets}${essay}${tips}${channel}`;
 }
 
 function openDetail() {
@@ -520,6 +537,10 @@ function paint() {
     if (at != null) line.setSelectionRange(at, at);
   }
   scheduleVoteGuard();
+  if (detailOpen) {
+    const body = document.getElementById("detail-body");
+    if (body) body.innerHTML = detailHtml();
+  }
 }
 
 function showOverlay(pub, priv) {
