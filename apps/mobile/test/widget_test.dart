@@ -55,12 +55,22 @@ void main() {
   });
 
   testWidgets("table shows the AI badge, vote, night action, and ending", (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 2400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(_app(_snapshot(
       phase: "day_talk",
       phaseLabel: "燈亮討論",
+      secondsLeft: 12,
       pins: const [PinItem(id: "pin1", text: "真釘", unverified: true)],
       skillActions: const [NightChoice(action: "pin", label: "釘選殘訊", needsTarget: false)],
+      remnants: const [
+        EchoRemnant(nickname: "甲", factionLabel: "燈塔網", text: "第一"),
+        EchoRemnant(nickname: "乙", factionLabel: "消音組", text: "第二"),
+      ],
     )));
+    expect(find.text("剩餘 12 秒"), findsOneWidget);
+    expect(find.text("甲 · 燈塔網"), findsOneWidget);
+    expect(find.text("乙 · 消音組"), findsOneWidget);
     expect(find.text("AI"), findsOneWidget);
     expect(find.text("燈亮討論"), findsOneWidget);
     expect(find.text("掩護員 · 燈塔網"), findsOneWidget);
@@ -107,11 +117,13 @@ void main() {
     await tester.pumpWidget(_app(_snapshot(
       phase: "ended",
       phaseLabel: "終局",
-      winner: const Winner(faction: "grey", factionLabel: "灰頻", reason: "灰頻獨贏：孤證客仍在場，正確消音標記達 2。"),
+      winner: const Winner(faction: "grey", factionLabel: "灰頻", reason: "灰頻獨贏：孤證客仍在場，正確消音標記達 2。", kind: "grey_marks"),
+      reveal: const [SeatReveal(seatId: "s2", nickname: "霧港燈", alive: true, roleName: "消音手", factionLabel: "消音組")],
     )));
     await tester.pump();
     expect(find.text("灰頻"), findsWidgets);
     expect(find.textContaining("灰頻獨贏"), findsOneWidget);
+    expect(find.textContaining("消音手"), findsOneWidget);
   });
 }
 
@@ -132,6 +144,9 @@ GameSnapshot _snapshot({
   bool muted = false,
   String? sealCard,
   List<String> marks = const [],
+  int? secondsLeft,
+  List<EchoRemnant> remnants = const [],
+  List<SeatReveal> reveal = const [],
 }) {
   return GameSnapshot(
     public: PublicView(
@@ -151,6 +166,8 @@ GameSnapshot _snapshot({
       disconnects: 0,
       disconnectsToWin: 3,
       winner: winner,
+      secondsLeft: secondsLeft,
+      reveal: reveal,
     ),
     private: PrivateView(
       playerId: "p1",
@@ -175,6 +192,7 @@ GameSnapshot _snapshot({
       muted: muted,
       sealCard: sealCard,
       marks: marks,
+      remnants: remnants,
     ),
   );
 }

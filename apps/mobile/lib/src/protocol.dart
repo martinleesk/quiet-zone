@@ -45,17 +45,61 @@ class Composition {
 }
 
 class Winner {
-  const Winner({required this.faction, required this.factionLabel, required this.reason});
+  const Winner({required this.faction, required this.factionLabel, required this.reason, this.kind = ""});
 
   final String faction;
   final String factionLabel;
   final String reason;
+  final String kind;
 
   factory Winner.fromJson(Map<String, dynamic> json) {
     return Winner(
       faction: json["faction"]?.toString() ?? "",
       factionLabel: json["factionLabel"]?.toString() ?? "",
       reason: json["reason"]?.toString() ?? "",
+      kind: json["kind"]?.toString() ?? "",
+    );
+  }
+}
+
+class SeatReveal {
+  const SeatReveal({
+    required this.seatId,
+    required this.nickname,
+    required this.alive,
+    required this.roleName,
+    required this.factionLabel,
+  });
+
+  final String seatId;
+  final String nickname;
+  final bool alive;
+  final String roleName;
+  final String factionLabel;
+
+  factory SeatReveal.fromJson(Map<String, dynamic> json) {
+    return SeatReveal(
+      seatId: json["seatId"]?.toString() ?? "",
+      nickname: json["nickname"]?.toString() ?? "",
+      alive: json["alive"] == true,
+      roleName: json["roleName"]?.toString() ?? "",
+      factionLabel: json["factionLabel"]?.toString() ?? "",
+    );
+  }
+}
+
+class EchoRemnant {
+  const EchoRemnant({required this.nickname, required this.factionLabel, required this.text});
+
+  final String nickname;
+  final String factionLabel;
+  final String text;
+
+  factory EchoRemnant.fromJson(Map<String, dynamic> json) {
+    return EchoRemnant(
+      nickname: json["nickname"]?.toString() ?? "",
+      factionLabel: json["factionLabel"]?.toString() ?? "",
+      text: json["text"]?.toString() ?? "",
     );
   }
 }
@@ -92,6 +136,8 @@ class PublicView {
     required this.disconnectsToWin,
     required this.winner,
     this.locked = false,
+    this.secondsLeft,
+    this.reveal = const [],
   });
 
   final String code;
@@ -108,6 +154,8 @@ class PublicView {
   final int disconnectsToWin;
   final Winner? winner;
   final bool locked;
+  final int? secondsLeft;
+  final List<SeatReveal> reveal;
 
   factory PublicView.fromJson(Map<String, dynamic> json) {
     final seats = <PublicSeat>[];
@@ -125,6 +173,13 @@ class PublicView {
       }
     }
     final rawWinner = json["winner"];
+    final reveal = <SeatReveal>[];
+    final rawReveal = json["reveal"];
+    if (rawReveal is List) {
+      for (final seat in rawReveal) {
+        if (seat is Map) reveal.add(SeatReveal.fromJson(Map<String, dynamic>.from(seat)));
+      }
+    }
     final pins = <PinItem>[];
     final rawPins = json["pins"];
     if (rawPins is List) {
@@ -147,6 +202,8 @@ class PublicView {
       disconnectsToWin: _asInt(json["disconnectsToWin"], fallback: 3),
       winner: rawWinner is Map ? Winner.fromJson(Map<String, dynamic>.from(rawWinner)) : null,
       locked: json["locked"] == true,
+      secondsLeft: json["secondsLeft"] == null ? null : _asInt(json["secondsLeft"]),
+      reveal: reveal,
     );
   }
 }
@@ -260,6 +317,7 @@ class PrivateView {
     this.reclaimToken,
     this.silenceChannel = const [],
     this.tips = const [],
+    this.remnants = const [],
     required this.marks,
   });
 
@@ -282,6 +340,7 @@ class PrivateView {
   final String? reclaimToken;
   final List<SilenceNote> silenceChannel;
   final List<PhaseTip> tips;
+  final List<EchoRemnant> remnants;
   final List<String> marks;
 
   factory PrivateView.fromJson(Map<String, dynamic> json) {
@@ -306,6 +365,7 @@ class PrivateView {
       reclaimToken: json["reclaimToken"]?.toString(),
       silenceChannel: _maps(json["silenceChannel"]).map(SilenceNote.fromJson).toList(),
       tips: _maps(json["tips"]).map(PhaseTip.fromJson).toList(),
+      remnants: _maps(json["remnants"]).map(EchoRemnant.fromJson).toList(),
       marks: _strings(json["marks"]),
     );
   }

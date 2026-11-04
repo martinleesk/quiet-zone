@@ -20,6 +20,8 @@ class GameController extends ChangeNotifier {
   bool _leaving = false;
   bool _reclaiming = false;
   final Set<String> dismissedTips = {};
+  int? secondsLeft;
+  Timer? _countdown;
 
   Future<void> createRoom(String url, String nickname) {
     _serverUrl = url.trim();
@@ -118,6 +120,20 @@ class GameController extends ChangeNotifier {
     }
   }
 
+  void _syncCountdown(int? next) {
+    _countdown?.cancel();
+    secondsLeft = next;
+    if (next == null) return;
+    _countdown = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (secondsLeft == null || secondsLeft! <= 0) {
+        _countdown?.cancel();
+        return;
+      }
+      secondsLeft = secondsLeft! - 1;
+      notifyListeners();
+    });
+  }
+
   void _maybeReclaim() {
     final token = _reclaimToken;
     final url = _serverUrl;
@@ -154,6 +170,7 @@ class GameController extends ChangeNotifier {
       error = null;
       final token = message.snapshot.private.reclaimToken;
       if (token != null && token.isNotEmpty) _reclaimToken = token;
+      _syncCountdown(message.snapshot.public.secondsLeft);
       _reclaiming = false;
     } else if (message is ErrorMessage) {
       error = message.error.message;
@@ -163,6 +180,7 @@ class GameController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _countdown?.cancel();
     _sub?.cancel();
     _channel?.sink.close();
     super.dispose();

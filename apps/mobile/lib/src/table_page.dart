@@ -50,6 +50,13 @@ class _TablePageState extends State<TablePage> {
       appBar: AppBar(
         title: Text(public.phaseLabel.isEmpty ? public.phase : public.phaseLabel),
         actions: [
+          if ((widget.controller.secondsLeft ?? public.secondsLeft) != null)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text("剩餘 ${widget.controller.secondsLeft ?? public.secondsLeft} 秒"),
+              ),
+            ),
           TextButton(onPressed: widget.controller.leave, child: const Text("離開")),
         ],
       ),
@@ -70,7 +77,16 @@ class _TablePageState extends State<TablePage> {
                   "公開組成　燈塔網 ${public.composition.lighthouse} · 消音組 ${public.composition.silence} · 灰頻 ${public.composition.grey}",
                 ),
                 const SizedBox(height: 12),
-                if (public.winner != null) _WinnerCard(winner: public.winner!),
+                if (public.winner != null) _WinnerCard(winner: public.winner!, reveal: public.reveal),
+                if (mine.remnants.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text("回波殘片", style: Theme.of(context).textTheme.titleSmall),
+                  for (final remnant in mine.remnants)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text("${remnant.nickname} · ${remnant.factionLabel}"),
+                    ),
+                ],
                 if (mine.sealCard != null)
                   Card(
                     color: const Color(0xFF3A2A32),
@@ -456,9 +472,10 @@ class _TablePageState extends State<TablePage> {
 }
 
 class _WinnerCard extends StatelessWidget {
-  const _WinnerCard({required this.winner});
+  const _WinnerCard({required this.winner, required this.reveal});
 
   final Winner winner;
+  final List<SeatReveal> reveal;
 
   @override
   Widget build(BuildContext context) {
@@ -474,6 +491,15 @@ class _WinnerCard extends StatelessWidget {
             Text(winner.factionLabel, style: Theme.of(context).textTheme.headlineMedium),
             const SizedBox(height: 4),
             Text(winner.reason),
+            if (reveal.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text("身分公開"),
+              for (final seat in reveal)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text("${seat.seatId} ${seat.nickname} · ${seat.roleName} · ${seat.factionLabel}${seat.alive ? "" : " · 離場"}"),
+                ),
+            ],
           ],
         ),
       ),
