@@ -21,6 +21,13 @@ test("two seeded games finish, differ, and keep a persona on every seat", () => 
   assert.equal(batch.summary.distinctFingerprints, 2);
 });
 
+test("a three-seat vote cycle does not run forever", () => {
+  const game = runSimGame(20261195);
+  assert.equal(game.finished, true);
+  assert.ok(game.winnerFaction === "lighthouse" || game.winnerFaction === "silence" || game.winnerFaction === "grey");
+  assert.ok(game.rounds < 14);
+});
+
 test("the old two-seat deadlock seed now finishes", () => {
   const game = runSimGame(20261111);
   assert.equal(game.finished, true);
