@@ -52,6 +52,13 @@ export const RULES = {
     mustBeAlive: true,
     priority: "before_silence_and_lighthouse",
   },
+  /** Standard skill quotas. A–G above stay as locked. */
+  skills: {
+    pinPerDay: 1,
+    linkPerDay: 1,
+    fakePerGame: 2,
+    anonymousVotesPerGame: 1,
+  },
   phases: ["boot", "day_talk", "draft", "vote", "resolve", "night", "check"],
   phaseMs: {
     boot: 8000,

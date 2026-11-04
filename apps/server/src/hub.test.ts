@@ -11,6 +11,25 @@ function lastState(messages: ServerMsg[]): Extract<ServerMsg, { type: "state" }>
   return state;
 }
 
+test("lobby drop frees the seat", () => {
+  const hub = new RoomHub({ timers: false, autoAi: true, rng: () => 0 });
+  hub.bind("host", () => {});
+  hub.bind("guest", () => {});
+  hub.handle("host", { type: "create_room", nickname: "主持人" });
+  const created = hub.snapshot("host");
+  assert.ok(created && created.type === "state");
+  if (!created || created.type !== "state") return;
+  hub.handle("guest", { type: "join_room", code: created.public.code, nickname: "好友" });
+  hub.disconnect("guest");
+  const after = hub.snapshot("host");
+  assert.ok(after && after.type === "state");
+  if (after && after.type === "state") {
+    assert.equal(after.public.phase, "lobby");
+    assert.equal(after.public.seats.length, 1);
+    assert.equal(after.public.seats[0]?.isAi, false);
+  }
+});
+
 test("private room: join by code, AI fillers keep a permanent badge, roles stay private", () => {
   const hub = new RoomHub({ timers: false, autoAi: true, rng: () => 0 });
   const seenA: ServerMsg[] = [];
@@ -59,11 +78,22 @@ test("private room: join by code, AI fillers keep a permanent badge, roles stay 
     }
   }
 
+  hub.disconnect("guest");
+  const taken = hub.snapshot("host");
+  assert.ok(taken && taken.type === "state");
+  if (taken && taken.type === "state") {
+    const guestSeat = taken.public.seats.find((seat) => seat.nickname === "好友");
+    assert.equal(guestSeat?.isAi, true);
+    assert.equal(taken.public.log.some((line) => line.text.includes("AI 接管同一席")), true);
+    const guestRole = guestView.private.role?.id;
+    if (guestRole && taken.private.role?.id !== guestRole) {
+      assert.equal(JSON.stringify(taken.private).includes(`"${guestRole}"`), false);
+    }
+  }
+
   hub.handle("host", { type: "ready" });
-  assert.equal(lastState(seenA).public.phase, "boot");
-  hub.handle("guest", { type: "ready" });
   const day = lastState(seenA);
   assert.equal(day.public.phase, "day_talk");
-  assert.equal(day.public.seats.filter((seat) => seat.isAi).length, 9);
-  assert.ok(day.public.seats.filter((seat) => seat.isAi).every((seat) => seat.isAi));
+  assert.equal(day.public.seats.filter((seat) => seat.isAi).length, 10);
+  assert.equal(day.public.seats.find((seat) => seat.nickname === "好友")?.isAi, true);
 });

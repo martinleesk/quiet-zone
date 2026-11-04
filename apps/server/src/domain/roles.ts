@@ -18,7 +18,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "tip",
     name: "線報員",
     faction: "lighthouse",
-    skill: "釘選殘訊（本切片未啟用主動）。你可以發言、草稿、投票。",
+    skill: "釘選殘訊：每個燈亮可釘一條公開資訊上時間線，唔佔發言格。",
   },
   sweep: {
     id: "sweep",
@@ -42,7 +42,7 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "link",
     name: "通聯官",
     faction: "lighthouse",
-    skill: "核對通聯（本切片未啟用主動）。你可以發言、草稿、投票。",
+    skill: "核對通聯：每個燈亮可查一人上回合用過主動技能未，唔會話你知係邊種。",
   },
   civilian: {
     id: "civilian",
@@ -60,13 +60,13 @@ export const ROLES: Record<RoleId, RoleDef> = {
     id: "decoy",
     name: "假訊員",
     faction: "silence",
-    skill: "投放假訊（本切片未啟用主動）。你知道消音組隊友。",
+    skill: "投放假訊：每局兩次。可以將釘選標做待核實，或者放一句來源未核。",
   },
   plant: {
     id: "plant",
     name: "影內應",
     faction: "silence",
-    skill: "訊號霧：第一次被掃頻固定回「訊號乾淨」。",
+    skill: "訊號霧：第一次被掃頻固定回「訊號乾淨」。每局一次匿名票。",
   },
   warrant: {
     id: "warrant",

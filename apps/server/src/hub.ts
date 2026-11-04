@@ -9,8 +9,9 @@ export type ClientMsg =
   | { type: "start_game" }
   | { type: "chat"; text?: string }
   | { type: "draft"; text?: string }
-  | { type: "vote"; targetSeatId?: string | null }
+  | { type: "vote"; targetSeatId?: string | null; anonymous?: boolean }
   | { type: "night_action"; action?: string; targetSeatId?: string }
+  | { type: "skill"; action?: string; text?: string; targetId?: string }
   | { type: "ready" };
 
 export interface DressedPublic extends PublicSnapshot {
@@ -62,6 +63,29 @@ export class RoomHub {
     this.sinks.delete(playerId);
   }
 
+  /**
+   * Socket dropped. Lobby frees the seat. An in-progress game hands that seat to AI
+   * with the same role and private state, and the badge stays on.
+   */
+  disconnect(playerId: string): void {
+    this.unbind(playerId);
+    const room = this.roomOf(playerId);
+    this.playerRoom.delete(playerId);
+    if (!room) return;
+    if (room.engine.getPhase() === "lobby") {
+      room.engine.removeLobbyPlayer(playerId);
+      if (room.engine.publicView().seats.length === 0) {
+        this.clearTimer(room);
+        this.rooms.delete(room.code);
+        return;
+      }
+    } else {
+      room.engine.takeoverAsAi(playerId);
+      this.maybeEarly(room);
+    }
+    this.broadcast(room);
+  }
+
   snapshot(playerId: string): ServerMsg | null {
     const room = this.roomOf(playerId);
     if (!room) return null;
@@ -73,7 +97,16 @@ export class RoomHub {
       this.fail(playerId, "bad_message", "訊息格式唔正確。");
       return;
     }
-    const msg = raw as Partial<ClientMsg> & { type?: string };
+    const msg = raw as {
+      type?: string;
+      nickname?: string;
+      code?: string;
+      text?: string;
+      targetSeatId?: string | null;
+      anonymous?: boolean;
+      action?: string;
+      targetId?: string;
+    };
     switch (msg.type) {
       case "create_room":
         this.create(playerId, String(msg.nickname ?? ""));
@@ -92,7 +125,20 @@ export class RoomHub {
         return;
       case "vote":
         this.act(playerId, (engine) =>
-          engine.submitVote(playerId, msg.targetSeatId == null || msg.targetSeatId === "" ? null : String(msg.targetSeatId)),
+          engine.submitVote(
+            playerId,
+            msg.targetSeatId == null || msg.targetSeatId === "" ? null : String(msg.targetSeatId),
+            msg.anonymous === true,
+          ),
+        );
+        return;
+      case "skill":
+        this.act(playerId, (engine) =>
+          this.skill(engine, playerId, {
+            action: String(msg.action ?? ""),
+            text: msg.text == null ? "" : String(msg.text),
+            targetId: msg.targetId == null ? "" : String(msg.targetId),
+          }),
         );
         return;
       case "night_action":
@@ -168,6 +214,18 @@ export class RoomHub {
     }
     this.arm(room);
     this.broadcast(room);
+  }
+
+  private skill(
+    engine: GameEngine,
+    playerId: string,
+    msg: { action: string; text: string; targetId: string },
+  ): { ok: true } | { ok: false; code: string; message: string } {
+    if (msg.action === "pin") return engine.submitPin(playerId, msg.text);
+    if (msg.action === "link") return engine.submitLink(playerId, msg.targetId);
+    if (msg.action === "fake_flag") return engine.submitFake(playerId, { mode: "flag", pinId: msg.targetId });
+    if (msg.action === "fake_plant") return engine.submitFake(playerId, { mode: "plant", text: msg.text });
+    return { ok: false, code: "bad_message", message: "未知嘅技能。" };
   }
 
   private act(

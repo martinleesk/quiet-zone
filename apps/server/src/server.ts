@@ -53,7 +53,7 @@ export function createGameServer(opts: HubOptions = {}): GameServer {
       hub.handle(playerId, parsed);
     });
     socket.on("close", () => {
-      hub.unbind(playerId);
+      hub.disconnect(playerId);
     });
   });
 
