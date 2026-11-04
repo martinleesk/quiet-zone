@@ -2,6 +2,7 @@ import "package:flutter/material.dart";
 
 import "ai_badge.dart";
 import "art.dart";
+import "codex_page.dart";
 import "game_controller.dart";
 
 class LobbyPage extends StatelessWidget {
@@ -18,6 +19,7 @@ class LobbyPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text("組席"),
         actions: [
+          TextButton(onPressed: () => openRoleCodex(context), child: const Text("角色圖鑑")),
           TextButton(onPressed: controller.leave, child: const Text("離開")),
         ],
       ),

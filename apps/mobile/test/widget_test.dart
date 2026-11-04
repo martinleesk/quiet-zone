@@ -106,6 +106,8 @@ void main() {
   });
 
   testWidgets("home offers a private room", (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(const QuietZoneApp());
     expect(find.text("消音區"), findsOneWidget);
     expect(find.text("開私人房"), findsOneWidget);
@@ -202,6 +204,29 @@ void main() {
     expect(find.byKey(const Key("role-placeholder")), findsOneWidget);
     expect(find.text("路"), findsOneWidget);
     _expectFaction(tester, ArtCatalog.lighthouse);
+  });
+
+  testWidgets("seat chips show a bust only for the viewer's own role or a public reveal", (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_app(_snapshot(phase: "day_talk", phaseLabel: "燈亮討論")));
+    expect(find.byKey(const Key("seat-bust:${ArtCatalog.cover}")), findsOneWidget);
+    expect(find.byKey(const Key("seat-placeholder:s2")), findsOneWidget);
+    expect(find.byKey(const Key("seat-bust:${ArtCatalog.silencer}")), findsNothing);
+    expect(find.text("消音手"), findsNothing);
+
+    await tester.pumpWidget(_app(_snapshot(
+      phase: "ended",
+      phaseLabel: "終局",
+      reveal: const [
+        SeatReveal(seatId: "s2", nickname: "霧港燈", alive: true, roleName: "消音手", factionLabel: "消音組"),
+      ],
+    )));
+    await tester.pump();
+    expect(find.byKey(const Key("seat-bust:${ArtCatalog.cover}")), findsOneWidget);
+    expect(find.byKey(const Key("seat-bust:${ArtCatalog.silencer}")), findsOneWidget);
+    expect(find.byKey(const Key("seat-placeholder:s2")), findsNothing);
   });
 
   testWidgets("table shows the AI badge, vote, night action, and ending", (tester) async {

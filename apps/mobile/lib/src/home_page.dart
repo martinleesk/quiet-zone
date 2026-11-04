@@ -1,6 +1,7 @@
 import "package:flutter/material.dart";
 
 import "art.dart";
+import "codex_page.dart";
 import "game_controller.dart";
 
 class HomePage extends StatefulWidget {
@@ -58,6 +59,11 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.all(24),
                 children: [
                   const Text("私人房 11 席。空位由 AI 補上，徽章會一直顯示。你只會收到自己嘅身分。"),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                    onPressed: () => openRoleCodex(context),
+                    child: const Text("角色圖鑑"),
+                  ),
                   const SizedBox(height: 24),
                   TextField(
                     controller: _url,
